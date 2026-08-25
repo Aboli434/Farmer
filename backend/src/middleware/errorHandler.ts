@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { ApiError } from '../utils/ApiError';
 import { Prisma } from '@prisma/client';
+import { logger } from '../utils/logger';
 
 export const errorHandler = (
   err: any,
@@ -34,9 +35,15 @@ export const errorHandler = (
     // Could attach detailed zod errors if needed
   }
 
-  // In development, you might want to log the full error stack
-  if (process.env.NODE_ENV !== 'production') {
-    console.error(err);
+  const reqId = req.headers['x-request-id'] as string;
+
+  if (statusCode >= 500) {
+    logger.error(`[${reqId}] Unhandled Error: ${err.message}`, { 
+      stack: process.env.NODE_ENV === 'production' ? undefined : err.stack,
+      err 
+    });
+  } else if (process.env.NODE_ENV !== 'production') {
+    logger.warn(`[${reqId}] Client Error: ${err.message}`, { err });
   }
 
   res.status(statusCode).json({
@@ -44,6 +51,7 @@ export const errorHandler = (
     error: {
       code: errorCode,
       message,
+      requestId: reqId,
       ...(err instanceof ApiError && err.details ? { details: err.details } : {})
     },
   });

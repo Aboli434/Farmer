@@ -1,6 +1,7 @@
 import { prisma } from '../../config/prisma';
 import { ApiError } from '../../utils/ApiError';
 import { ReviewStatus } from '@prisma/client';
+import { AdminAuditService } from './admin.audit.service';
 
 export class AdminReviewService {
   /**
@@ -49,21 +50,34 @@ export class AdminReviewService {
    * Update the status of a review (e.g. VISIBLE or HIDDEN).
    */
   static async moderateReview(reviewId: string, status: ReviewStatus, adminId: string) {
-    const review = await prisma.review.findUnique({
-      where: { id: reviewId }
-    });
+    return await prisma.$transaction(async (tx) => {
+      const review = await tx.review.findUnique({
+        where: { id: reviewId }
+      });
 
-    if (!review) {
-      throw new ApiError(404, 'NOT_FOUND', 'Review not found');
-    }
+      if (!review) {
+        throw new ApiError(404, 'NOT_FOUND', 'Review not found');
+      }
 
-    if (status !== ReviewStatus.VISIBLE && status !== ReviewStatus.HIDDEN) {
-      throw new ApiError(400, 'BAD_REQUEST', 'Can only set status to VISIBLE or HIDDEN');
-    }
+      if (status !== ReviewStatus.VISIBLE && status !== ReviewStatus.HIDDEN) {
+        throw new ApiError(400, 'BAD_REQUEST', 'Can only set status to VISIBLE or HIDDEN');
+      }
 
-    return await prisma.review.update({
-      where: { id: reviewId },
-      data: { status }
+      const updated = await tx.review.update({
+        where: { id: reviewId },
+        data: { status }
+      });
+
+      await AdminAuditService.logAction(tx, {
+        adminId,
+        action: status === ReviewStatus.HIDDEN ? 'HIDE_REVIEW' : 'RESTORE_REVIEW',
+        entityType: 'Review',
+        entityId: reviewId,
+        previousValue: { status: review.status },
+        newValue: { status: updated.status }
+      });
+
+      return updated;
     });
   }
 }

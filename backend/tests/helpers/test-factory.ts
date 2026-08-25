@@ -250,9 +250,15 @@ export class TestFactory {
    * Cleanup specific entities (to replace global deleteMany)
    */
   static async cleanupTestData() {
+    await prisma.paymentWebhookEvent.deleteMany({});
     // Delete in correct order to respect FK constraints
     const testUsers = await prisma.user.findMany({
-      where: { phone: { startsWith: '99' } },
+      where: { 
+        OR: [
+          { phone: { startsWith: '99' } },
+          { phone: { startsWith: '+1' } }
+        ]
+      },
       select: { id: true }
     });
     
@@ -317,6 +323,7 @@ export class TestFactory {
 
     // Orders Hierarchy
     if (sellerOrderIds.length > 0) {
+      await prisma.review.deleteMany({ where: { orderItem: { sellerOrderId: { in: sellerOrderIds } } } });
       await prisma.refund.deleteMany({ where: { sellerOrderId: { in: sellerOrderIds } } });
       await prisma.orderItem.deleteMany({ where: { sellerOrderId: { in: sellerOrderIds } } });
       await prisma.sellerOrder.deleteMany({ where: { id: { in: sellerOrderIds } } });
@@ -345,6 +352,7 @@ export class TestFactory {
     await prisma.address.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.session.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.otpVerification.deleteMany({ where: { phone: { startsWith: '99' } } });
+    await prisma.adminAction.deleteMany({ where: { adminId: { in: userIds } } });
     
     // Finally Users
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });

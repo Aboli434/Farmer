@@ -2,6 +2,8 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { ApiError } from '../../utils/ApiError';
 import { InventoryService } from '../inventory/inventory.service';
+import { razorpay } from '../../config/razorpay';
+import { logger } from '../../utils/logger';
 
 export class CheckoutService {
   static async initiateCheckout(userId: string, addressId: string, idempotencyKey: string) {
@@ -38,7 +40,33 @@ export class CheckoutService {
       throw new ApiError(400, 'BAD_REQUEST', 'Cart is empty');
     }
 
-    // 4. TRANSACTIONAL CHECKOUT
+    // 4. Create Razorpay Order BEFORE starting the DB transaction
+    //    (external API calls must never be inside a Prisma interactive transaction)
+    let providerOrderId: string;
+    let razorpayOrderAmount: number | undefined;
+    let razorpayOrderCurrency: string | undefined;
+
+    if (!razorpay) {
+      throw new ApiError(500, 'INTERNAL_SERVER_ERROR', 'Payment gateway is not configured');
+    }
+
+    // Pre-calculate total to create Razorpay order
+    let preTotal = 0;
+    for (const item of cart.items) {
+      preTotal += Number(item.variant.price) * Number(item.quantity);
+    }
+
+    const razorpayOrder = await razorpay.orders.create({
+      amount: Math.round(preTotal * 100),
+      currency: 'INR',
+      receipt: `rcpt_${Date.now()}`,
+    });
+
+    providerOrderId = razorpayOrder.id;
+    razorpayOrderAmount = razorpayOrder.amount;
+    razorpayOrderCurrency = razorpayOrder.currency;
+
+    // 5. TRANSACTIONAL CHECKOUT — DB only, no external calls
     return await prisma.$transaction(async (tx) => {
       const groupedItems: any = {};
       let totalOrderAmount = 0;
@@ -96,7 +124,7 @@ export class CheckoutService {
             producerNameSnapshot: producer!.farmName,
             status: 'PENDING',
             subtotal: groupData.subtotal,
-            deliveryFee: 0, // MVP MVP
+            deliveryFee: 0,
             totalAmount: groupData.subtotal
           }
         });
@@ -118,13 +146,10 @@ export class CheckoutService {
         }
       }
 
-      // Create mock payment
-      const providerOrderId = `MOCK_ORDER_${Date.now()}_${order.id.substring(0, 5)}`;
-      
       const payment = await tx.payment.create({
         data: {
           orderId: order.id,
-          provider: 'MOCK_GATEWAY',
+          provider: 'RAZORPAY',
           providerOrderId,
           idempotencyKey,
           amount: totalOrderAmount,
@@ -132,9 +157,43 @@ export class CheckoutService {
         }
       });
 
-      // Link reservations implicitly (Webhook will find them by variantId + userId)
-      return { payment, providerOrderId };
+      return { 
+        payment, 
+        providerOrderId, 
+        razorpayOrderAmount, 
+        razorpayOrderCurrency
+      };
+    }, { timeout: 15000 }); // Extend to 15s for multi-seller carts
+  }
+
+  // Handle frontend callback specifically for payment verification (Optional/UI-only step, real work done by webhook)
+  static async verifyPaymentSignature(providerOrderId: string, providerPaymentId: string, providerSignature: string) {
+    const crypto = require('crypto');
+    const secret = process.env.RAZORPAY_KEY_SECRET;
+
+    if (!secret) throw new ApiError(500, 'INTERNAL_SERVER_ERROR', 'Payment gateway misconfigured');
+
+    const expectedSignature = crypto
+      .createHmac('sha256', secret)
+      .update(providerOrderId + '|' + providerPaymentId)
+      .digest('hex');
+
+    if (expectedSignature !== providerSignature) {
+      throw new ApiError(400, 'BAD_REQUEST', 'Invalid payment signature');
+    }
+
+    // Don't update status to SUCCESS here! 
+    // Razorpay best practices: Let the webhook handle internal state mutations for reliability.
+    // We just store the signature details for auditing/verification.
+    await prisma.payment.update({
+      where: { providerOrderId },
+      data: {
+        providerPaymentId,
+        providerSignature
+      }
     });
+
+    return true;
   }
 
   static async handleWebhook(providerOrderId: string, status: 'SUCCESS' | 'FAILURE') {

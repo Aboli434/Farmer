@@ -2,9 +2,13 @@ import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import { requestIdMiddleware } from './middleware/requestId';
+import { requestLogger } from './middleware/requestLogger';
+import { globalLimiter } from './middleware/rateLimiter';
 import { errorHandler } from './middleware/errorHandler';
 import { notFound } from './middleware/notFound';
 import authRoutes from './modules/auth/auth.routes';
+import webhookRoutes from './modules/payment/payment.webhook.routes';
 import producerRoutes from './modules/producer/producer.routes';
 import producerDiscoveryRoutes from './modules/producer/producer-discovery.routes';
 import adminRoutes from './modules/admin/admin.routes';
@@ -24,16 +28,42 @@ import dashboardRoutes from './modules/dashboard/dashboard.routes';
 const app: Application = express();
 
 // Global Middlewares
-app.use(helmet());
+app.use(requestIdMiddleware);
+app.use(requestLogger);
+
+// Security Headers (Baseline)
+app.use(helmet({
+  contentSecurityPolicy: false, // Wait until frontend integration to tighten
+  hsts: process.env.NODE_ENV === 'production',
+}));
+
+// Global Rate Limiting
+app.use(globalLimiter);
+
+// CORS configuration
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',') 
+  : ['http://localhost:3000'];
+
 app.use(cors({
-  origin: true, // Configurable later
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 }));
+
+// Webhooks (Must be placed before express.json() to get raw body)
+app.use('/api/webhooks', express.raw({ type: 'application/json' }), webhookRoutes);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Health Check Route
+// Health Check Route (Liveness)
 app.get('/api/health', (req: Request, res: Response) => {
   res.status(200).json({
     success: true,
@@ -42,6 +72,18 @@ app.get('/api/health', (req: Request, res: Response) => {
       timestamp: new Date().toISOString(),
     },
   });
+});
+
+import { prisma } from './config/prisma';
+
+// Readiness Check Route (Dependencies)
+app.get('/api/ready', async (req: Request, res: Response) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.status(200).json({ success: true, message: 'Database is ready' });
+  } catch (err) {
+    res.status(503).json({ success: false, message: 'Database is unavailable' });
+  }
 });
 
 // Modular Routes

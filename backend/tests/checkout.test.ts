@@ -7,6 +7,18 @@ import { TestFactory } from './helpers/test-factory';
 
 jest.setTimeout(30000);
 
+let mockOrderCounter = 0;
+jest.mock('razorpay', () => {
+  return jest.fn().mockImplementation(() => ({
+    orders: {
+      create: jest.fn().mockImplementation(() => {
+        mockOrderCounter++;
+        return Promise.resolve({ id: `order_mock_co_${mockOrderCounter}`, amount: 2000, status: 'created' });
+      })
+    }
+  }));
+});
+
 let customerToken: string;
 let customerId: string;
 let addressId: string;
@@ -145,15 +157,33 @@ describe('Phase 10 - Cart & Checkout', () => {
     });
 
     it('should handle mock webhook SUCCESS', async () => {
+      // The providerOrderId used is whatever the mock returned for the first checkout
+      const providerOrderId = `order_mock_co_1`;
+
+      const payload = {
+        event: 'payment.captured',
+        payload: { payment: { entity: { order_id: providerOrderId } } }
+      };
+      
+      const crypto = require('crypto');
+      const secret = 'test_secret';
+      process.env.RAZORPAY_WEBHOOK_SECRET = secret;
+      const bodyString = JSON.stringify(payload);
+      const signature = crypto.createHmac('sha256', secret).update(bodyString).digest('hex');
+
       const res = await request(app)
-        .post('/api/checkout/webhook')
-        .send({
-          providerOrderId: mockPayment.providerOrderId,
-          status: 'SUCCESS'
-        });
+        .post('/api/webhooks/razorpay')
+        .set('x-razorpay-signature', signature)
+        .set('x-razorpay-event-id', 'evt_checkout_success')
+        .set('Content-Type', 'application/json')
+        .send(bodyString);
 
       expect(res.status).toBe(200);
-      expect(res.body.data.status).toBe('SUCCESS');
+      expect(res.body.success).toBe(true); // Webhook returns { success: true }
+
+      // Verify payment in DB
+      const payment = await prisma.payment.findFirst({ where: { providerOrderId } });
+      expect(payment?.status).toBe('SUCCESS');
 
       // Check Order Statuses
       const updatedOrder = await prisma.order.findUnique({
@@ -196,18 +226,34 @@ describe('Phase 10 - Cart & Checkout', () => {
         .set('Authorization', `Bearer ${customerToken}`)
         .send({ addressId, idempotencyKey: 'key_fail_test' });
 
-      const mockPayment = initRes.body.data.payment;
+      // mockOrderCounter will be 2 for this second checkout
+      const failProviderOrderId = `order_mock_co_2`;
+      expect(initRes.status).toBe(200);
 
-      // Fail payment
+      const payload = {
+        event: 'payment.failed',
+        payload: { payment: { entity: { order_id: failProviderOrderId } } }
+      };
+      
+      const crypto = require('crypto');
+      const secret = 'test_secret';
+      process.env.RAZORPAY_WEBHOOK_SECRET = secret;
+      const bodyString = JSON.stringify(payload);
+      const signature = crypto.createHmac('sha256', secret).update(bodyString).digest('hex');
+
       const webRes = await request(app)
-        .post('/api/checkout/webhook')
-        .send({ providerOrderId: mockPayment.providerOrderId, status: 'FAILURE' });
+        .post('/api/webhooks/razorpay')
+        .set('x-razorpay-signature', signature)
+        .set('x-razorpay-event-id', 'evt_checkout_fail')
+        .set('Content-Type', 'application/json')
+        .send(bodyString);
 
       expect(webRes.status).toBe(200);
 
-      // Check SellerOrder cancelled
+      // Check SellerOrder cancelled — look up the order by providerOrderId from DB
+      const failedPayment = await prisma.payment.findFirst({ where: { providerOrderId: failProviderOrderId } });
       const masterOrder = await prisma.order.findUnique({
-        where: { id: mockPayment.orderId },
+        where: { id: failedPayment!.orderId },
         include: { sellerOrders: true }
       });
       expect(masterOrder?.sellerOrders[0].status).toBe('CANCELLED');

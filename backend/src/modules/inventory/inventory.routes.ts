@@ -1,13 +1,13 @@
 import { Router } from 'express';
 import { InventoryController } from './inventory.controller';
-import { authenticate, requireSeller } from '../../middleware/auth.middleware';
+import { authenticate, requireActiveSeller } from '../../middleware/auth.middleware';
 import { validateRequest } from '../../middleware/validateRequest';
 import { updateInventorySchema } from './inventory.validation';
 
 const router = Router();
 
 // Protected Routes (SELLER only)
-router.use(authenticate, requireSeller);
+router.use(authenticate, requireActiveSeller);
 
 router.patch(
   '/:variantId',

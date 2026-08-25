@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { ProductController } from './product.controller';
-import { authenticate, requireSeller } from '../../middleware/auth.middleware';
+import { authenticate, requireSeller, requireActiveSeller } from '../../middleware/auth.middleware';
 import { validateRequest } from '../../middleware/validateRequest';
 import { createProductSchema, updateProductSchema, queryProductsSchema } from './product.validation';
 
@@ -13,15 +13,11 @@ router.get(
   ProductController.getProducts
 );
 
-// We need to make sure this doesn't conflict with `/me/catalog`
-// So we define `/me/catalog` BEFORE `/:slug`
-
 // Protected Routes (SELLER only)
-// Note: We use an inline router or put it before the slug route
 router.get(
   '/me/catalog',
   authenticate,
-  requireSeller,
+  requireSeller, // They can view their catalog
   validateRequest(queryProductsSchema),
   ProductController.getSellerProducts
 );
@@ -29,7 +25,7 @@ router.get(
 router.post(
   '/',
   authenticate,
-  requireSeller,
+  requireActiveSeller,
   validateRequest(createProductSchema),
   ProductController.createProduct
 );
@@ -37,7 +33,7 @@ router.post(
 router.patch(
   '/:id',
   authenticate,
-  requireSeller,
+  requireActiveSeller,
   validateRequest(updateProductSchema),
   ProductController.updateProduct
 );
@@ -45,7 +41,7 @@ router.patch(
 router.delete(
   '/:id',
   authenticate,
-  requireSeller,
+  requireActiveSeller,
   ProductController.deleteProduct
 );
 

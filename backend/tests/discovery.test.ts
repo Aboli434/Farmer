@@ -157,9 +157,9 @@ describe('Phase 9 - Customer Product Discovery', () => {
       const res = await request(app).get('/api/producers/nearby?pincode=411001');
       expect(res.status).toBe(200);
       expect(res.body.data.length).toBeGreaterThanOrEqual(1);
-      expect(res.body.data[0].farmName).toBe('Pune Farm');
-      // Should return active product count
-      expect(res.body.data[0]._count.products).toBe(1);
+      const found = res.body.data.find((p: any) => p.farmName === 'Pune Farm');
+      expect(found).toBeDefined();
+      expect(found._count.products).toBe(1);
     });
 
     it('should return public producer profile without private info', async () => {

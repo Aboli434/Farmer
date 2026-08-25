@@ -10,7 +10,8 @@ export class ProducerDiscoveryService {
     const where: any = {
       deletedAt: null,
       verifications: {
-        some: { status: 'APPROVED' }
+        some: { status: 'APPROVED' },
+        none: { status: 'SUSPENDED' }
       }
     };
 
@@ -80,6 +81,12 @@ export class ProducerDiscoveryService {
 
     if (!profile) return null;
 
+    // Additional safeguard: If they somehow have a SUSPENDED verification, hide them
+    const hasSuspension = await prisma.producerVerification.findFirst({
+      where: { producerId: profileId, status: 'SUSPENDED' }
+    });
+    if (hasSuspension) return null;
+
     // Calculate aggregated review stats for this producer
     const reviewAgg = await prisma.review.aggregate({
       where: {
@@ -111,7 +118,8 @@ export class ProducerDiscoveryService {
     
     const whereClauses: Prisma.Sql[] = [
       Prisma.sql`pp."deletedAt" IS NULL`,
-      Prisma.sql`EXISTS (SELECT 1 FROM "ProducerVerification" pv WHERE pv."producerId" = pp."id" AND pv."status" = 'APPROVED')`
+      Prisma.sql`EXISTS (SELECT 1 FROM "ProducerVerification" pv WHERE pv."producerId" = pp."id" AND pv."status" = 'APPROVED')`,
+      Prisma.sql`NOT EXISTS (SELECT 1 FROM "ProducerVerification" pv WHERE pv."producerId" = pp."id" AND pv."status" = 'SUSPENDED')`
     ];
 
     const whereSql = Prisma.sql`WHERE ${Prisma.join(whereClauses, ' AND ')}`;

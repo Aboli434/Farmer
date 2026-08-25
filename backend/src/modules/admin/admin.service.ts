@@ -1,6 +1,7 @@
 import { prisma } from '../../config/prisma';
 import { ApiError } from '../../utils/ApiError';
 import { VerificationStatus, Role, ProductStatus } from '@prisma/client';
+import { AdminAuditService } from './admin.audit.service';
 
 export class AdminService {
   static async getVerifications(page: number, limit: number, status?: VerificationStatus) {
@@ -104,6 +105,16 @@ export class AdminService {
         data: { role: Role.SELLER }
       });
 
+      // 5. Audit Log
+      await AdminAuditService.logAction(tx, {
+        adminId,
+        action: 'APPROVE_PRODUCER',
+        entityType: 'ProducerVerification',
+        entityId: id,
+        previousValue: { status: verification.status },
+        newValue: { status: VerificationStatus.APPROVED }
+      });
+
       return updatedVerification;
     }, {
       maxWait: 15000,
@@ -112,30 +123,86 @@ export class AdminService {
   }
 
   static async rejectVerification(id: string, adminId: string, reason: string) {
-    const verification = await prisma.producerVerification.findUnique({
-      where: { id }
-    });
+    return await prisma.$transaction(async (tx) => {
+      const verification = await tx.producerVerification.findUnique({
+        where: { id }
+      });
 
-    if (!verification) {
-      throw new ApiError(404, 'NOT_FOUND', 'Verification not found.');
-    }
-
-    if (verification.status !== VerificationStatus.PENDING) {
-      throw new ApiError(400, 'BAD_REQUEST', `Cannot reject. Application is currently ${verification.status}, expected PENDING.`);
-    }
-
-    const updatedVerification = await prisma.producerVerification.update({
-      where: { id },
-      data: {
-        status: VerificationStatus.REJECTED,
-        rejectionReason: reason,
-        reviewedById: adminId,
-        reviewedAt: new Date()
+      if (!verification) {
+        throw new ApiError(404, 'NOT_FOUND', 'Verification not found.');
       }
-    });
 
-    return updatedVerification;
+      if (verification.status !== VerificationStatus.PENDING) {
+        throw new ApiError(400, 'BAD_REQUEST', `Cannot reject. Application is currently ${verification.status}, expected PENDING.`);
+      }
+
+      const updatedVerification = await tx.producerVerification.update({
+        where: { id },
+        data: {
+          status: VerificationStatus.REJECTED,
+          rejectionReason: reason,
+          reviewedById: adminId,
+          reviewedAt: new Date()
+        }
+      });
+
+      await AdminAuditService.logAction(tx, {
+        adminId,
+        action: 'REJECT_PRODUCER',
+        entityType: 'ProducerVerification',
+        entityId: id,
+        previousValue: { status: verification.status },
+        newValue: { status: VerificationStatus.REJECTED },
+        reason
+      });
+
+      return updatedVerification;
+    });
   }
+
+  static async suspendProducer(producerId: string, adminId: string, reason: string) {
+    return await prisma.$transaction(async (tx) => {
+      const verification = await tx.producerVerification.findFirst({
+        where: { producerId }
+      });
+
+      if (!verification) {
+        throw new ApiError(404, 'NOT_FOUND', 'Producer verification not found.');
+      }
+
+      if (verification.status === VerificationStatus.SUSPENDED) {
+        throw new ApiError(400, 'BAD_REQUEST', 'Producer is already suspended.');
+      }
+
+      const updatedVerification = await tx.producerVerification.update({
+        where: { id: verification.id },
+        data: {
+          status: VerificationStatus.SUSPENDED,
+          rejectionReason: reason,
+          reviewedById: adminId,
+          reviewedAt: new Date()
+        }
+      });
+
+      // Optional: Do we change User role back to CUSTOMER? 
+      // The rules say "Suspended producer blocks operations". 
+      // We can keep role SELLER but status SUSPENDED blocks them.
+      // Or change user status? Let's rely on VerificationStatus = SUSPENDED.
+
+      await AdminAuditService.logAction(tx, {
+        adminId,
+        action: 'SUSPEND_PRODUCER',
+        entityType: 'ProducerVerification',
+        entityId: verification.id,
+        previousValue: { status: verification.status },
+        newValue: { status: VerificationStatus.SUSPENDED },
+        reason
+      });
+
+      return updatedVerification;
+    });
+  }
+
   // =====================================
   // PRODUCT MODERATION
   // =====================================
@@ -172,29 +239,56 @@ export class AdminService {
     };
   }
 
-  static async approveProduct(id: string) {
-    const product = await prisma.product.findUnique({ where: { id } });
-    if (!product) throw new ApiError(404, 'NOT_FOUND', 'Product not found.');
-    if (product.status !== ProductStatus.PENDING) {
-      throw new ApiError(400, 'BAD_REQUEST', `Cannot approve product in status: ${product.status}`);
-    }
+  static async approveProduct(id: string, adminId: string) {
+    return await prisma.$transaction(async (tx) => {
+      const product = await tx.product.findUnique({ where: { id } });
+      if (!product) throw new ApiError(404, 'NOT_FOUND', 'Product not found.');
+      if (product.status !== ProductStatus.PENDING) {
+        throw new ApiError(400, 'BAD_REQUEST', `Cannot approve product in status: ${product.status}`);
+      }
 
-    return await prisma.product.update({
-      where: { id },
-      data: { status: ProductStatus.ACTIVE }
+      const updated = await tx.product.update({
+        where: { id },
+        data: { status: ProductStatus.ACTIVE }
+      });
+
+      await AdminAuditService.logAction(tx, {
+        adminId,
+        action: 'APPROVE_PRODUCT',
+        entityType: 'Product',
+        entityId: id,
+        previousValue: { status: product.status },
+        newValue: { status: ProductStatus.ACTIVE }
+      });
+
+      return updated;
     });
   }
 
-  static async rejectProduct(id: string) {
-    const product = await prisma.product.findUnique({ where: { id } });
-    if (!product) throw new ApiError(404, 'NOT_FOUND', 'Product not found.');
-    if (product.status !== ProductStatus.PENDING) {
-      throw new ApiError(400, 'BAD_REQUEST', `Cannot reject product in status: ${product.status}`);
-    }
+  static async rejectProduct(id: string, adminId: string, reason?: string) {
+    return await prisma.$transaction(async (tx) => {
+      const product = await tx.product.findUnique({ where: { id } });
+      if (!product) throw new ApiError(404, 'NOT_FOUND', 'Product not found.');
+      if (product.status !== ProductStatus.PENDING) {
+        throw new ApiError(400, 'BAD_REQUEST', `Cannot reject product in status: ${product.status}`);
+      }
 
-    return await prisma.product.update({
-      where: { id },
-      data: { status: ProductStatus.REJECTED }
+      const updated = await tx.product.update({
+        where: { id },
+        data: { status: ProductStatus.REJECTED }
+      });
+
+      await AdminAuditService.logAction(tx, {
+        adminId,
+        action: 'REJECT_PRODUCT',
+        entityType: 'Product',
+        entityId: id,
+        previousValue: { status: product.status },
+        newValue: { status: ProductStatus.REJECTED },
+        reason
+      });
+
+      return updated;
     });
   }
 }

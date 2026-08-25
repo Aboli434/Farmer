@@ -170,6 +170,7 @@ model User {
   notifications         Notification[]
   reviewedVerifications ProducerVerification[] @relation("ReviewedBy")
   inventoryReservations InventoryReservation[]
+  adminActions          AdminAction[]
 }
 
 model OtpVerification {
@@ -510,6 +511,7 @@ model Payment {
   provider          String // e.g., "RAZORPAY"
   providerOrderId   String?       @unique
   providerPaymentId String?       @unique
+  providerSignature String?       // NEW: To store verified signature
   idempotencyKey    String?       @unique
   amount            Decimal       @db.Decimal(10, 2)
   currency          String        @default("INR")
@@ -520,6 +522,19 @@ model Payment {
 
   order   Order    @relation(fields: [orderId], references: [id], onDelete: Restrict)
   refunds Refund[]
+}
+
+model PaymentWebhookEvent {
+  id              String   @id @default(uuid())
+  providerEventId String   @unique
+  eventType       String
+  payload         Json
+  status          String   @default("PENDING") // PENDING, PROCESSED, FAILED
+  error           String?  @db.Text
+  processedAt     DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([status])
 }
 
 model Settlement {
@@ -641,4 +656,24 @@ model Complaint {
   orderItem   OrderItem?   @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
 }
 
+// ==========================================
+// AUDIT LOGGING
+// ==========================================
+
+model AdminAction {
+  id            String   @id @default(uuid())
+  adminId       String
+  action        String   // "APPROVE_PRODUCER", "REJECT_PRODUCT", "HIDE_REVIEW", "SUSPEND_PRODUCER", "REFUND_ORDER"
+  entityType    String   // "ProducerVerification", "Product", "Review", "ProducerProfile", "SellerOrder"
+  entityId      String
+  previousValue Json?    // State before the action
+  newValue      Json?    // State after the action
+  reason        String?  @db.Text
+  createdAt     DateTime @default(now())
+
+  admin         User     @relation(fields: [adminId], references: [id])
+  
+  @@index([adminId])
+  @@index([entityType, entityId])
+}
 

@@ -69,6 +69,28 @@ export class AdminController {
       next(error);
     }
   }
+
+  static async suspendProducer(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const producerId = req.params.id as string;
+      const adminId = req.user!.id;
+      const { reason } = req.body;
+
+      if (!reason) {
+        return res.status(400).json({ success: false, message: 'Reason is required for suspension.' });
+      }
+
+      const result = await AdminService.suspendProducer(producerId, adminId, reason);
+      
+      res.status(200).json({
+        success: true,
+        message: 'Producer suspended successfully.',
+        data: result
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
   // =====================================
   // PRODUCT MODERATION
   // =====================================
@@ -84,18 +106,21 @@ export class AdminController {
     } catch (error) { next(error); }
   }
 
-  static async approveProduct(req: Request, res: Response, next: NextFunction) {
+  static async approveProduct(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const id = req.params.id as string;
-      const result = await AdminService.approveProduct(id);
+      const adminId = req.user!.id;
+      const result = await AdminService.approveProduct(id, adminId);
       res.status(200).json({ success: true, message: 'Product approved.', data: result });
     } catch (error) { next(error); }
   }
 
-  static async rejectProduct(req: Request, res: Response, next: NextFunction) {
+  static async rejectProduct(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const id = req.params.id as string;
-      const result = await AdminService.rejectProduct(id);
+      const adminId = req.user!.id;
+      const { reason } = req.body;
+      const result = await AdminService.rejectProduct(id, adminId, reason);
       res.status(200).json({ success: true, message: 'Product rejected.', data: result });
     } catch (error) { next(error); }
   }

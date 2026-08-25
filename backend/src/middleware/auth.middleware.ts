@@ -61,3 +61,33 @@ export const requireRole = (roles: Role[]) => {
 
 export const requireAdmin = requireRole([Role.ADMIN]);
 export const requireSeller = requireRole([Role.SELLER]);
+
+export const requireActiveSeller = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  // First ensure they have SELLER role
+  if (!req.user || req.user.role !== Role.SELLER) {
+    return next(new ApiError(403, 'FORBIDDEN', 'You do not have permission to perform this action.'));
+  }
+
+  try {
+    // Check if their producer profile is suspended
+    const profile = await prisma.producerProfile.findUnique({
+      where: { userId: req.user.id },
+      include: {
+        verifications: {
+          orderBy: { createdAt: 'desc' },
+          take: 1
+        }
+      }
+    });
+
+    if (profile && profile.verifications.length > 0) {
+      if (profile.verifications[0].status === 'SUSPENDED') {
+        return next(new ApiError(403, 'FORBIDDEN', 'Your seller account has been suspended.'));
+      }
+    }
+
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
