@@ -1,0 +1,644 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum Role {
+  CUSTOMER
+  SELLER
+  ADMIN
+  DELIVERY_PARTNER
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum ProductStatus {
+  DRAFT
+  PENDING
+  ACTIVE
+  REJECTED
+  INACTIVE
+}
+
+enum ProductType {
+  FRESH_PRODUCE
+  PROCESSED_FOOD
+}
+
+enum ProcessingLevel {
+  RAW
+  MINIMALLY_PROCESSED
+  PROCESSED
+}
+
+enum TransactionType {
+  INITIAL_STOCK
+  RESTOCK
+  SALE
+  RESERVATION
+  RELEASE
+  ADJUSTMENT
+  DAMAGED
+  EXPIRED
+}
+
+enum ReservationStatus {
+  RESERVED
+  CONFIRMED
+  EXPIRED
+}
+
+enum CartStatus {
+  ACTIVE
+  CONVERTED
+  ABANDONED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  ACCEPTED
+  REJECTED
+  PREPARING
+  READY
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum SettlementStatus {
+  PENDING
+  PROCESSING
+  SETTLED
+  FAILED
+}
+
+enum RefundStatus {
+  PENDING
+  PROCESSED
+  FAILED
+}
+
+enum DeliveryMethod {
+  SELF_DELIVERY
+  PLATFORM_DELIVERY
+}
+
+enum ComplaintStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  REJECTED
+}
+
+enum ComplaintResolution {
+  REFUND
+  PARTIAL_REFUND
+  REPLACEMENT
+  REJECTED
+}
+
+enum NotificationType {
+  ORDER_CONFIRMED
+  ORDER_ACCEPTED
+  ORDER_REJECTED
+  ORDER_PREPARING
+  ORDER_READY
+  ORDER_OUT_FOR_DELIVERY
+  ORDER_DELIVERED
+  ORDER_CANCELLED
+  REFUND_CREATED
+  
+  PRODUCER_APPLICATION_SUBMITTED
+  PRODUCER_APPLICATION_APPROVED
+  PRODUCER_APPLICATION_REJECTED
+
+  PRODUCT_SUBMITTED
+  PRODUCT_APPROVED
+  PRODUCT_REJECTED
+
+  LOW_STOCK
+}
+
+enum ReviewStatus {
+  VISIBLE
+  HIDDEN
+  FLAGGED
+}
+
+// ==========================================
+// AUTH & USERS
+// ==========================================
+
+model User {
+  id        String   @id @default(uuid())
+  phone     String   @unique
+  email     String?  @unique
+  name      String
+  role      Role     @default(CUSTOMER)
+  status    String   @default("ACTIVE") // ACTIVE, INACTIVE, BLOCKED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile               ProducerProfile?
+  addresses             Address[]
+  sessions              Session[]
+  carts                 Cart[]
+  orders                Order[]
+  reviews               Review[]
+  complaints            Complaint[]
+  notifications         Notification[]
+  reviewedVerifications ProducerVerification[] @relation("ReviewedBy")
+  inventoryReservations InventoryReservation[]
+}
+
+model OtpVerification {
+  id         String    @id @default(uuid())
+  phone      String
+  otpHash    String
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  verifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([phone, expiresAt])
+}
+
+model Session {
+  id         String    @id @default(uuid())
+  userId     String
+  tokenHash  String?
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Address {
+  id        String   @id @default(uuid())
+  userId    String
+  isDefault Boolean  @default(false)
+  fullName  String
+  phone     String
+  pincode   String
+  city      String
+  district  String
+  state     String
+  address   String
+  landmark  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ==========================================
+// PRODUCER
+// ==========================================
+
+enum ProducerType {
+  FARMER
+  HOME_PRODUCER
+  ARTISAN_PRODUCER
+  FARM_COOPERATIVE
+  OTHER
+}
+
+model ProducerProfile {
+  id            String       @id @default(uuid())
+  userId        String       @unique
+  producerType  ProducerType @default(FARMER)
+  farmName      String
+  story         String       @db.Text
+  addressLine   String?
+  pincode       String
+  district      String
+  city          String
+  state         String
+  fssaiNumber   String?
+  latitude      Decimal?  @db.Decimal(10, 7)
+  longitude     Decimal?  @db.Decimal(10, 7)
+  serviceRadius Int       @default(10) // km
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user          User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verifications ProducerVerification[]
+  products      Product[]
+  sellerOrders  SellerOrder[]
+
+  @@index([pincode])
+  @@index([city, district])
+  @@index([district])
+}
+
+model ProducerVerification {
+  id              String             @id @default(uuid())
+  producerId      String
+  status          VerificationStatus @default(PENDING)
+  documents       Json // Array of document URLs/Metadata
+  rejectionReason String?
+  reviewedById    String?
+  submittedAt     DateTime           @default(now())
+  reviewedAt      DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  producer   ProducerProfile @relation(fields: [producerId], references: [id], onDelete: Cascade)
+  reviewedBy User?           @relation("ReviewedBy", fields: [reviewedById], references: [id])
+}
+
+// ==========================================
+// CATALOG
+// ==========================================
+
+model Category {
+  id          String    @id @default(uuid())
+  parentId    String?
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  parent      Category?  @relation("SubCategories", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Category[] @relation("SubCategories")
+  products    Product[]
+}
+
+model Product {
+  id          String        @id @default(uuid())
+  producerId  String
+  categoryId  String
+  name        String
+  slug        String        @unique
+  description String        @db.Text
+  status      ProductStatus @default(PENDING)
+  productType ProductType
+  deletedAt   DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  producer ProducerProfile  @relation(fields: [producerId], references: [id], onDelete: Restrict)
+  category Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  detail   ProductDetail?
+  images   ProductImage[]
+  variants ProductVariant[]
+  reviews  Review[]
+
+  @@index([categoryId])
+  @@index([producerId])
+  @@index([status, deletedAt])
+}
+
+model ProductDetail {
+  id                  String           @id @default(uuid())
+  productId           String           @unique
+  isVegetarian        Boolean          @default(true)
+  shelfLifeDays       Int?
+  ingredients         String?          @db.Text
+  processingLevel     ProcessingLevel?
+  processingDetails   String?          @db.Text
+  allergenInfo        String?          @db.Text
+  productionDate      DateTime?
+  harvestDate         DateTime?
+  bestBeforeDate      DateTime?
+  expiryDate          DateTime?
+  storageInstructions String?          @db.Text
+  packagingDetails    String?          @db.Text
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model ProductImage {
+  id        String   @id @default(uuid())
+  productId String
+  url       String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model ProductVariant {
+  id            String    @id @default(uuid())
+  productId     String
+  label         String // e.g., "500 ml", "1 kg"
+  quantity      Decimal   @db.Decimal(10, 2) // 500
+  unit          String // "ml"
+  price         Decimal   @db.Decimal(10, 2)
+  isActive      Boolean   @default(true)
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+  inventory  Inventory?
+}
+
+// ==========================================
+// INVENTORY
+// ==========================================
+
+model Inventory {
+  id                String    @id @default(uuid())
+  variantId         String    @unique
+  availableQuantity Decimal   @db.Decimal(10, 3) @default(0)
+  reservedQuantity  Decimal   @db.Decimal(10, 3) @default(0)
+  soldQuantity      Decimal   @db.Decimal(10, 3) @default(0)
+  lowStockThreshold Decimal   @db.Decimal(10, 3) @default(5)
+  updatedAt         DateTime  @updatedAt
+
+  variant      ProductVariant         @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  transactions InventoryTransaction[]
+  reservations InventoryReservation[]
+}
+
+model InventoryTransaction {
+  id              String          @id @default(uuid())
+  inventoryId     String
+  type            TransactionType
+  quantityChanged Decimal         @db.Decimal(10, 3)
+  referenceId     String?
+  notes           String?         @db.Text
+  createdAt       DateTime        @default(now())
+
+  inventory Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+}
+
+model InventoryReservation {
+  id          String            @id @default(uuid())
+  inventoryId String
+  userId      String
+  quantity    Decimal           @db.Decimal(10, 3)
+  expiresAt   DateTime
+  status      ReservationStatus @default(RESERVED)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  inventory Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ==========================================
+// CART
+// ==========================================
+
+model Cart {
+  id        String     @id @default(uuid())
+  userId    String
+  status    CartStatus @default(ACTIVE)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CartItem[]
+
+  @@index([userId, status])
+}
+
+model CartItem {
+  id        String   @id @default(uuid())
+  cartId    String
+  variantId String
+  quantity  Decimal  @db.Decimal(10, 3)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cart    Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, variantId])
+}
+
+// ==========================================
+// ORDER
+// ==========================================
+
+model Order {
+  id                      String   @id @default(uuid())
+  userId                  String
+  shippingAddressSnapshot Json
+  totalAmount             Decimal  @db.Decimal(10, 2)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  sellerOrders SellerOrder[]
+  payments     Payment[]
+  complaints   Complaint[]
+}
+
+model SellerOrder {
+  id                   String         @id @default(uuid())
+  orderId              String
+  producerId           String
+  producerNameSnapshot String
+  status               OrderStatus    @default(PENDING)
+  subtotal             Decimal        @db.Decimal(10, 2)
+  deliveryFee          Decimal        @default(0) @db.Decimal(10, 2)
+  totalAmount          Decimal        @db.Decimal(10, 2)
+  cancellationReason   String?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  order      Order       @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  producer   ProducerProfile @relation(fields: [producerId], references: [id], onDelete: Restrict)
+  items      OrderItem[]
+  delivery   Delivery?
+  settlement Settlement?
+  complaints Complaint[]
+  refunds    Refund[]
+
+  @@index([status])
+  @@index([producerId])
+}
+
+model OrderItem {
+  id                   String   @id @default(uuid())
+  sellerOrderId        String
+  variantId            String
+  productNameSnapshot  String
+  variantLabelSnapshot String
+  quantity             Decimal  @db.Decimal(10, 3)
+  unit                 String
+  unitPrice            Decimal  @db.Decimal(10, 2)
+  totalPrice           Decimal  @db.Decimal(10, 2)
+  taxAmount            Decimal  @default(0) @db.Decimal(10, 2)
+
+  sellerOrder SellerOrder    @relation(fields: [sellerOrderId], references: [id], onDelete: Cascade)
+  variant     ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  review      Review?
+  complaints  Complaint[]
+}
+
+// ==========================================
+// PAYMENTS & SETTLEMENTS
+// ==========================================
+
+model Payment {
+  id                String        @id @default(uuid())
+  orderId           String
+  provider          String // e.g., "RAZORPAY"
+  providerOrderId   String?       @unique
+  providerPaymentId String?       @unique
+  idempotencyKey    String?       @unique
+  amount            Decimal       @db.Decimal(10, 2)
+  currency          String        @default("INR")
+  status            PaymentStatus @default(PENDING)
+  paidAt            DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  refunds Refund[]
+}
+
+model Settlement {
+  id               String           @id @default(uuid())
+  sellerOrderId    String           @unique
+  producerId       String
+  grossAmount      Decimal          @db.Decimal(10, 2)
+  commissionAmount Decimal          @db.Decimal(10, 2)
+  adjustmentAmount Decimal          @default(0) @db.Decimal(10, 2)
+  netAmount        Decimal          @db.Decimal(10, 2)
+  status           SettlementStatus @default(PENDING)
+  payoutReference  String?
+  failureReason    String?
+  processedAt      DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  sellerOrder SellerOrder @relation(fields: [sellerOrderId], references: [id], onDelete: Restrict)
+}
+
+model Refund {
+  id               String       @id @default(uuid())
+  paymentId        String
+  sellerOrderId    String
+  amount           Decimal      @db.Decimal(10, 2)
+  reason           String?      @db.Text
+  status           RefundStatus @default(PENDING)
+  providerRefundId String?      @unique
+  processedAt      DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  payment     Payment     @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  sellerOrder SellerOrder @relation(fields: [sellerOrderId], references: [id], onDelete: Restrict)
+
+  @@index([paymentId])
+  @@index([sellerOrderId])
+}
+
+// ==========================================
+// NOTIFICATIONS
+// ==========================================
+
+model Notification {
+  id         String           @id @default(uuid())
+  userId     String
+  type       NotificationType
+  title      String
+  message    String           @db.Text
+  entityType String?
+  entityId   String?
+  isRead     Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+  readAt     DateTime?
+
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, isRead])
+}
+
+// ==========================================
+// DELIVERY
+// ==========================================
+
+model Delivery {
+  id             String         @id @default(uuid())
+  sellerOrderId  String         @unique
+  method         DeliveryMethod
+  trackingNumber String?
+  trackingUrl    String?
+  status         String         @default("PENDING") // Extensible for detailed tracking
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  sellerOrder SellerOrder @relation(fields: [sellerOrderId], references: [id], onDelete: Cascade)
+}
+
+// ==========================================
+// TRUST (REVIEWS, COMPLAINTS, NOTIFICATIONS)
+// ==========================================
+
+model Review {
+  id          String       @id @default(uuid())
+  userId      String
+  productId   String
+  orderItemId String       @unique
+  rating      Int
+  comment     String?      @db.Text
+  status      ReviewStatus @default(VISIBLE)
+  deletedAt   DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Restrict)
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+
+  @@index([productId, status, deletedAt])
+  @@index([userId, status, deletedAt])
+}
+
+model Complaint {
+  id            String               @id @default(uuid())
+  userId        String
+  orderId       String?
+  sellerOrderId String?
+  orderItemId   String?
+  subject       String
+  description   String               @db.Text
+  status        ComplaintStatus      @default(OPEN)
+  resolution    ComplaintResolution?
+  resolvedAt    DateTime?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order       Order?       @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  sellerOrder SellerOrder? @relation(fields: [sellerOrderId], references: [id], onDelete: SetNull)
+  orderItem   OrderItem?   @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+}
+
+
