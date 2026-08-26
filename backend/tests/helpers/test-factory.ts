@@ -313,6 +313,12 @@ export class TestFactory {
     // Notifications
     await prisma.notification.deleteMany({ where: { userId: { in: userIds } } });
 
+    // Complaints (FK on userId, orderId, sellerOrderId, orderItemId — delete before Orders)
+    await prisma.complaint.deleteMany({ where: { userId: { in: userIds } } });
+    if (orderIds.length > 0) {
+      await prisma.complaint.deleteMany({ where: { orderId: { in: orderIds } } });
+    }
+
     // Inventory Reservations & Transactions
     await prisma.inventoryReservation.deleteMany({ where: { userId: { in: userIds } } });
     if (variantIds.length > 0) {
@@ -324,8 +330,10 @@ export class TestFactory {
     // Orders Hierarchy
     if (sellerOrderIds.length > 0) {
       await prisma.review.deleteMany({ where: { orderItem: { sellerOrderId: { in: sellerOrderIds } } } });
+      await prisma.settlement.deleteMany({ where: { sellerOrderId: { in: sellerOrderIds } } });
       await prisma.refund.deleteMany({ where: { sellerOrderId: { in: sellerOrderIds } } });
       await prisma.orderItem.deleteMany({ where: { sellerOrderId: { in: sellerOrderIds } } });
+      await prisma.delivery.deleteMany({ where: { sellerOrderId: { in: sellerOrderIds } } });
       await prisma.sellerOrder.deleteMany({ where: { id: { in: sellerOrderIds } } });
     }
 
@@ -359,5 +367,8 @@ export class TestFactory {
 
     // Clean up test categories
     await prisma.category.deleteMany({ where: { slug: { startsWith: 'test-' } } });
+
+    // Clean up any orphaned webhook events
+    await prisma.paymentWebhookEvent.deleteMany({});
   }
 }

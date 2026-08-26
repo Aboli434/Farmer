@@ -101,9 +101,35 @@ export class InventoryService {
     };
 
     if (existingTx) {
+      // Already inside an outer transaction — run directly, let caller handle conflicts
       return await runInTx(existingTx);
     } else {
-      return await prisma.$transaction(runInTx, { isolationLevel: 'Serializable' });
+      // Standalone call — retry on serialization conflict so the business logic
+      // (stock check) gets a chance to run with fresh data and return the correct error.
+      const MAX_RETRIES = 3;
+      let lastErr: any;
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          return await prisma.$transaction(runInTx, { isolationLevel: 'Serializable' });
+        } catch (err: any) {
+          // P2034 = write conflict / serialization failure — safe to retry
+          const isConflict = err?.code === 'P2034'
+            || err?.message?.includes('write conflict')
+            || err?.message?.includes('deadlock');
+          if (isConflict && attempt < MAX_RETRIES) {
+            lastErr = err;
+            // Brief back-off before retry (avoids thundering herd)
+            await new Promise(r => setTimeout(r, attempt * 50));
+            continue;
+          }
+          // After MAX_RETRIES, or for any other error, re-throw
+          // If still a conflict, the caller gets the real Prisma error — the
+          // global error handler will return 500, which is intentional:
+          // a retry-exhausted conflict is a genuine infrastructure problem.
+          throw err;
+        }
+      }
+      throw lastErr;
     }
   }
 

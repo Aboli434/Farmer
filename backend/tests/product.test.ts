@@ -79,13 +79,18 @@ describe('Phase 7 - Product Catalog', () => {
     it('public catalog should NOT show PENDING products', async () => {
       const res = await request(app).get('/api/products');
       expect(res.status).toBe(200);
-      expect(res.body.data.length).toBe(0);
+      // The specific product created in this suite should not be in the public catalog
+      const found = res.body.data.find((p: any) => p.id === productId);
+      expect(found).toBeUndefined();
     });
 
     it('admin should see PENDING product and approve it', async () => {
       const listRes = await request(app).get('/api/admin/products').set('Cookie', adminCookie);
       expect(listRes.status).toBe(200);
-      expect(listRes.body.data.length).toBe(1);
+      // This suite's product must appear in admin list
+      const pendingProduct = listRes.body.data.find((p: any) => p.id === productId);
+      expect(pendingProduct).toBeDefined();
+      expect(pendingProduct.status).toBe('PENDING');
 
       const approveRes = await request(app).post(`/api/admin/products/${productId}/approve`).set('Cookie', adminCookie);
       expect(approveRes.status).toBe(200);

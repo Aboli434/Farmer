@@ -163,7 +163,7 @@ export class CheckoutService {
         razorpayOrderAmount, 
         razorpayOrderCurrency
       };
-    }, { timeout: 15000 }); // Extend to 15s for multi-seller carts
+    }, { timeout: 15000, isolationLevel: 'Serializable' }); // Serializable prevents inventory double-booking
   }
 
   // Handle frontend callback specifically for payment verification (Optional/UI-only step, real work done by webhook)

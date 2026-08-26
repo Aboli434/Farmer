@@ -111,7 +111,7 @@ describe('Phase 15: Admin Marketplace Operations', () => {
         });
       
       expect(res.status).toBe(403);
-      expect(res.body.message).toContain('suspended');
+      expect(res.body.error?.message).toContain('suspended');
     });
 
     it('should hide suspended producers from discovery', async () => {

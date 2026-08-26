@@ -54,7 +54,7 @@ describe('E2E: Producer Suspension', () => {
       variants: [{ label: '1kg', unit: 'KG', price: 10, quantity: 10 }]
     });
     expect(addRes.status).toBe(403);
-    expect(addRes.body.message).toMatch(/suspended/i);
+    expect(addRes.body.error?.message).toMatch(/suspended/i);
 
     // 4. Products disappear from discovery
     discRes = await request(app).get('/api/products');

@@ -13,6 +13,9 @@ describe('Phase 5 - Producer Registration', () => {
   let userId: string;
 
   beforeAll(async () => {
+    // Pre-clean any stale data from previous runs before creating test fixtures
+    await TestFactory.cleanupTestData();
+
     // 1. Create a customer to test with
     const { user, session } = await TestFactory.createCustomer({ phone: testPhone });
     userId = user.id;

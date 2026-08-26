@@ -90,7 +90,10 @@ describe('Phase 9 - Customer Product Discovery', () => {
         .set('Cookie', [customerToken]);
 
       expect(res.status).toBe(200);
-      expect(res.body.data.length).toBe(1);
+      // At least one address exists (the one this suite created)
+      expect(res.body.data.length).toBeGreaterThanOrEqual(1);
+      const found = res.body.data.find((a: any) => a.id === addressId);
+      expect(found).toBeDefined();
     });
   });
 
@@ -111,8 +114,10 @@ describe('Phase 9 - Customer Product Discovery', () => {
     it('should filter products by search text', async () => {
       const res = await request(app).get('/api/products?search=ghee');
       expect(res.status).toBe(200);
-      expect(res.body.data.length).toBe(1);
-      expect(res.body.data[0].name).toBe('Pune Ghee');
+      // This suite's product must be in results
+      const found = res.body.data.find((p: any) => p.id === productPuneId);
+      expect(found).toBeDefined();
+      expect(found.name).toBe('Pune Ghee');
     });
 
     it('should exclude products if out of stock', async () => {
@@ -125,7 +130,9 @@ describe('Phase 9 - Customer Product Discovery', () => {
 
       const res = await request(app).get('/api/products?search=ghee');
       expect(res.status).toBe(200);
-      expect(res.body.data.length).toBe(0);
+      // This suite's out-of-stock product must be excluded
+      const found = res.body.data.find((p: any) => p.id === productPuneId);
+      expect(found).toBeUndefined();
 
       // Revert stock for next tests
       await prisma.inventory.update({
@@ -142,7 +149,9 @@ describe('Phase 9 - Customer Product Discovery', () => {
 
       const res = await request(app).get('/api/products?search=ghee');
       expect(res.status).toBe(200);
-      expect(res.body.data.length).toBe(0); // Excluded because producer is not APPROVED
+      // This suite's product must be excluded when producer is not APPROVED
+      const found = res.body.data.find((p: any) => p.id === productPuneId);
+      expect(found).toBeUndefined();
 
       // Revert verification
       await prisma.producerVerification.updateMany({
