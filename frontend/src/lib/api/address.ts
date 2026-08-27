@@ -16,4 +16,19 @@ export const addressApi = {
       body: JSON.stringify(data),
     });
   },
+
+  updateAddress: async (id: string, data: Partial<CreateAddressDto>) => {
+    return apiClient<{ success: boolean; data: Address }>(`/address/${id}`, {
+      method: 'PATCH',
+      requireAuth: true,
+      body: JSON.stringify(data),
+    });
+  },
+
+  deleteAddress: async (id: string) => {
+    return apiClient<{ success: boolean; message: string }>(`/address/${id}`, {
+      method: 'DELETE',
+      requireAuth: true,
+    });
+  },
 };

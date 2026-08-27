@@ -1,14 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { ordersApi } from '@/lib/api/orders';
 import { Order } from '@/types/order';
-import { Loader2, ArrowLeft, Package, MapPin, CheckCircle2, Clock, AlertCircle, Calendar } from 'lucide-react';
+import { Loader2, ArrowLeft, Package, MapPin, CheckCircle2, Clock, AlertCircle, Calendar, Star } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { ReviewForm } from '@/components/customer/ReviewForm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import { OrderStatusTimeline } from '@/components/customer/OrderStatusTimeline';
 
 export default function OrderDetailsPage() {
   const params = useParams();
@@ -19,21 +22,26 @@ export default function OrderDetailsPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [reviewItemId, setReviewItemId] = useState<string | null>(null);
+  const [reviewProductName, setReviewProductName] = useState<string>('');
+
+  const fetchOrder = useCallback(async () => {
+    try {
+      const response = await ordersApi.getOrderDetails(orderId as string);
+      setOrder(response.data);
+    } catch (err) {
+      console.error(err);
+      setError('Failed to load order details');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [orderId]);
 
   useEffect(() => {
-    const fetchOrder = async () => {
-      try {
-        const response = await ordersApi.getOrderDetails(orderId);
-        setOrder(response.data);
-      } catch (err) {
-        console.error(err);
-        setError('Failed to load order details');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
     if (orderId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchOrder();
     }
     
@@ -41,9 +49,10 @@ export default function OrderDetailsPage() {
     // to see if the webhook changed the payment status to SUCCESS
     if (paymentStatusParam === 'processing') {
       let attempts = 0;
+      const maxAttempts = 10;
       const interval = setInterval(async () => {
         attempts++;
-        if (attempts > 5) {
+        if (attempts > maxAttempts) {
           clearInterval(interval);
           return;
         }
@@ -61,6 +70,20 @@ export default function OrderDetailsPage() {
       return () => clearInterval(interval);
     }
   }, [orderId, paymentStatusParam]);
+
+  const handleCancelOrder = async (sellerOrderId: string) => {
+    if (!confirm('Are you sure you want to cancel this order? This action cannot be undone.')) return;
+    
+    try {
+      setIsLoading(true);
+      await ordersApi.cancelSellerOrder(orderId, sellerOrderId);
+      await fetchOrder();
+    } catch (err) {
+      alert('Failed to cancel order. Please try again later.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -186,18 +209,29 @@ export default function OrderDetailsPage() {
         {order.sellerOrders?.map((sellerOrder) => (
           <Card key={sellerOrder.id} className="shadow-sm border-gray-200 overflow-hidden">
             <div className="bg-gray-50 px-6 py-4 border-b flex flex-wrap justify-between items-center gap-4">
-              <div>
-                <h3 className="font-semibold text-gray-900 text-lg">{sellerOrder.producerNameSnapshot}</h3>
-                <p className="text-sm text-gray-500">Sub-order #{sellerOrder.id.split('-')[0].toUpperCase()}</p>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h3 className="font-semibold text-gray-900 text-lg">{sellerOrder.producerNameSnapshot}</h3>
+                  <p className="text-sm text-gray-500">Sub-order #{sellerOrder.id.split('-')[0].toUpperCase()}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Badge className={`
+                    ${sellerOrder.status === 'DELIVERED' ? 'bg-green-100 text-green-800 hover:bg-green-100' :
+                      sellerOrder.status === 'CANCELLED' ? 'bg-red-100 text-red-800 hover:bg-red-100' :
+                      'bg-blue-100 text-blue-800 hover:bg-blue-100'}
+                    border-transparent px-3 py-1 text-sm
+                  `}>
+                    {sellerOrder.status.replace(/_/g, ' ')}
+                  </Badge>
+                  {sellerOrder.status === 'CONFIRMED' && (
+                    <Button variant="outline" size="sm" onClick={() => handleCancelOrder(sellerOrder.id)} className="text-red-600 border-red-200 hover:bg-red-50">
+                      Cancel Order
+                    </Button>
+                  )}
+                </div>
               </div>
-              <Badge className={`
-                ${sellerOrder.status === 'DELIVERED' ? 'bg-green-100 text-green-800 hover:bg-green-100' :
-                  sellerOrder.status === 'CANCELLED' ? 'bg-red-100 text-red-800 hover:bg-red-100' :
-                  'bg-blue-100 text-blue-800 hover:bg-blue-100'}
-                border-transparent px-3 py-1 text-sm
-              `}>
-                {sellerOrder.status.replace(/_/g, ' ')}
-              </Badge>
+              
+              <OrderStatusTimeline status={sellerOrder.status} />
             </div>
             <CardContent className="p-0">
               <ul className="divide-y divide-gray-100">
@@ -217,6 +251,15 @@ export default function OrderDetailsPage() {
                       <div>
                         <p className="font-medium text-gray-900">₹{item.totalPrice}</p>
                         <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
+                        {sellerOrder.status === 'DELIVERED' && (
+                          <Button variant="link" className="px-0 h-auto text-green-600 font-medium text-sm mt-1" onClick={() => {
+                            setReviewItemId(item.id);
+                            setReviewProductName(item.productNameSnapshot);
+                            setReviewModalOpen(true);
+                          }}>
+                            <Star className="h-3 w-3 mr-1" /> Rate Product
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </li>
@@ -254,6 +297,26 @@ export default function OrderDetailsPage() {
         </Card>
       </div>
 
+      <Dialog open={reviewModalOpen} onOpenChange={setReviewModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Write a Review</DialogTitle>
+            <DialogDescription>
+              Share your experience with {reviewProductName}.
+            </DialogDescription>
+          </DialogHeader>
+          {reviewItemId && (
+            <ReviewForm 
+              orderItemId={reviewItemId} 
+              onSuccess={() => {
+                setReviewModalOpen(false);
+                alert('Review submitted successfully!');
+              }} 
+              onCancel={() => setReviewModalOpen(false)} 
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

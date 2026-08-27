@@ -1,6 +1,6 @@
 import { RoleGuard } from '@/components/RoleGuard';
 import Link from 'next/link';
-import { Search, MapPin, Bell, ShoppingCart, User as UserIcon } from 'lucide-react';
+import { Search, MapPin, Bell, ShoppingCart, User, Package, User as UserIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CartProvider, useCart } from '@/lib/cart/store';
@@ -36,10 +36,14 @@ function CustomerHeader() {
 
         {/* Right side actions */}
         <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
-          <div className="hidden sm:flex items-center text-sm text-gray-600 gap-1 mr-2 cursor-pointer hover:text-green-700 transition-colors">
-            <MapPin className="h-4 w-4" />
-            <span className="truncate max-w-[120px]">Detect Location</span>
-          </div>
+          <Link href="/customer/orders" className="flex items-center space-x-1 text-gray-600 hover:text-green-700 font-medium">
+            <Package className="h-5 w-5" />
+            <span className="hidden sm:inline text-sm">Orders</span>
+          </Link>
+          <Link href="/customer/profile" className="flex items-center space-x-1 text-gray-600 hover:text-green-700 font-medium">
+            <User className="h-5 w-5" />
+            <span className="hidden sm:inline text-sm">Profile</span>
+          </Link>
           
           <Button variant="ghost" size="icon" className="relative text-gray-600 hover:text-green-700">
             <Bell className="h-5 w-5" />

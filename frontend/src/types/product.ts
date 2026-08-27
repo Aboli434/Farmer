@@ -81,6 +81,7 @@ export interface Product {
     district: string;
     state?: string;
     producerType: string;
+    trustScore?: number;
     verifications: { status: string }[];
   };
 }

@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { productsApi } from '@/lib/api/products';
 import { Product } from '@/types/product';
-import { Loader2, ArrowLeft, MapPin, ShieldCheck, Minus, Plus } from 'lucide-react';
+import { Loader2, ArrowLeft, MapPin, ShieldCheck, Minus, Plus, Star, Flag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useCart } from '@/lib/cart/store';
 import { ApiClientError } from '@/lib/api/client';
+import { reviewsApi } from '@/lib/api/reviews';
+import { Review } from '@/types/review';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -16,6 +18,9 @@ export default function ProductDetailPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
   
   const { addItem, isLoading: isCartLoading } = useCart();
   const [quantity, setQuantity] = useState(1);
@@ -28,6 +33,20 @@ export default function ProductDetailPage() {
         const response = await productsApi.getProductBySlug(slug);
         if (response.success && response.data) {
           setProduct(response.data);
+          
+          // Fetch reviews
+          setReviewsLoading(true);
+          try {
+            const reviewRes = await reviewsApi.getProductReviews(response.data.id);
+            if (reviewRes.success) {
+              setReviews(reviewRes.data);
+            }
+          } catch (rErr) {
+            console.error('Failed to load reviews', rErr);
+          } finally {
+            setReviewsLoading(false);
+          }
+          
         } else {
           setError('Product not found');
         }
@@ -104,6 +123,16 @@ export default function ProductDetailPage() {
     if (quantity < availableStock) setQuantity(q => q + 1);
   };
 
+  const handleReportReview = async (reviewId: string) => {
+    if (!confirm('Are you sure you want to report this review?')) return;
+    try {
+      await reviewsApi.reportReview(reviewId);
+      alert('Review reported successfully. Our team will review it.');
+    } catch {
+      alert('Failed to report review.');
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto pb-10">
       <Link href="/customer" className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-green-700 mb-6 transition-colors">
@@ -163,6 +192,12 @@ export default function ProductDetailPage() {
                       <ShieldCheck className="h-4 w-4 text-blue-500" />
                     )}
                   </div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <div className="flex items-center text-yellow-500 text-sm font-medium">
+                      <Star className="h-3.5 w-3.5 fill-current mr-1" />
+                      {producer?.trustScore ? producer.trustScore.toFixed(1) : 'New'}
+                    </div>
+                  </div>
                   <div className="flex items-center gap-1.5 text-sm text-gray-500 mt-1">
                     <MapPin className="h-3.5 w-3.5" />
                     {location}
@@ -219,6 +254,59 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </div>
+      
+      {/* Reviews Section */}
+      <div className="mt-10 bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">Customer Reviews</h2>
+        
+        {reviewsLoading ? (
+          <div className="flex justify-center py-10">
+            <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+          </div>
+        ) : reviews.length === 0 ? (
+          <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+            <Star className="mx-auto h-8 w-8 text-gray-300 mb-3" />
+            <p className="text-gray-500">No reviews yet for this product.</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {reviews.map((review) => (
+              <div key={review.id} className="pb-6 border-b border-gray-100 last:border-0 last:pb-0">
+                <div className="flex justify-between items-start mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star 
+                          key={star} 
+                          className={`h-4 w-4 ${star <= review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200'}`} 
+                        />
+                      ))}
+                    </div>
+                    <span className="font-medium text-gray-900">{review.user?.name || 'Customer'}</span>
+                    <span className="text-xs text-green-700 bg-green-50 px-2 py-0.5 rounded-full font-medium">Verified Purchase</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-gray-500">
+                      {new Date(review.createdAt).toLocaleDateString()}
+                    </span>
+                    <button 
+                      onClick={() => handleReportReview(review.id)}
+                      className="text-gray-400 hover:text-red-600 transition-colors"
+                      title="Report Review"
+                    >
+                      <Flag className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+                {review.comment && (
+                  <p className="text-gray-700 mt-2 text-sm">{review.comment}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }
