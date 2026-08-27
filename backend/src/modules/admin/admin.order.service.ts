@@ -213,6 +213,6 @@ export class AdminOrderService {
       });
 
       return updated;
-    });
+    }, { timeout: 20000 });
   }
 }

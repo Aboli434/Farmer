@@ -67,103 +67,120 @@ export class CheckoutService {
     razorpayOrderCurrency = razorpayOrder.currency;
 
     // 5. TRANSACTIONAL CHECKOUT — DB only, no external calls
-    return await prisma.$transaction(async (tx) => {
-      const groupedItems: any = {};
-      let totalOrderAmount = 0;
-      const reservationIds: string[] = [];
+    // Wrapped in a retry loop: Serializable transactions can conflict under
+    // concurrent load. On conflict (P2034), we retry the whole transaction.
+    // On retry, the second checkout reads real stock (0kg) and gets a genuine
+    // 400 from the stock check — proving the business invariant, not masking a DB error.
+    const MAX_CHECKOUT_RETRIES = 3;
+    let lastCheckoutErr: any;
 
-      for (const item of cart.items) {
-        // Reserve inventory within the SAME transaction
-        const reservation = await InventoryService.reserveInventory(item.variantId, userId, Number(item.quantity), tx);
-        reservationIds.push(reservation.id);
+    for (let attempt = 1; attempt <= MAX_CHECKOUT_RETRIES; attempt++) {
+      try {
+        return await prisma.$transaction(async (tx) => {
+          const groupedItems: any = {};
+          let totalOrderAmount = 0;
+          const reservationIds: string[] = [];
 
-        const producerId = item.variant.product.producerId;
-        if (!groupedItems[producerId]) {
-          groupedItems[producerId] = {
-            subtotal: 0,
-            items: []
-          };
-        }
+          for (const item of cart.items) {
+            // Reserve inventory within the SAME transaction
+            const reservation = await InventoryService.reserveInventory(item.variantId, userId, Number(item.quantity), tx);
+            reservationIds.push(reservation.id);
 
-        const unitPrice = Number(item.variant.price);
-        const quantity = Number(item.quantity);
-        const totalPrice = unitPrice * quantity;
+            const producerId = item.variant.product.producerId;
+            if (!groupedItems[producerId]) {
+              groupedItems[producerId] = { subtotal: 0, items: [] };
+            }
 
-        groupedItems[producerId].subtotal += totalPrice;
-        totalOrderAmount += totalPrice;
+            const unitPrice = Number(item.variant.price);
+            const quantity = Number(item.quantity);
+            const totalPrice = unitPrice * quantity;
 
-        groupedItems[producerId].items.push({
-          variantId: item.variantId,
-          quantity,
-          unitPrice,
-          totalPrice,
-          productNameSnapshot: item.variant.product.name,
-          variantLabelSnapshot: item.variant.label,
-          unit: item.variant.unit
-        });
-      }
+            groupedItems[producerId].subtotal += totalPrice;
+            totalOrderAmount += totalPrice;
 
-      // Create Master Order
-      const order = await tx.order.create({
-        data: {
-          userId,
-          shippingAddressSnapshot: address as any,
-          totalAmount: totalOrderAmount
-        }
-      });
-
-      // Create Seller Orders
-      for (const [producerId, group] of Object.entries(groupedItems)) {
-        const groupData = group as any;
-        const producer = await tx.producerProfile.findUnique({ where: { id: producerId } });
-        
-        const sellerOrder = await tx.sellerOrder.create({
-          data: {
-            orderId: order.id,
-            producerId,
-            producerNameSnapshot: producer!.farmName,
-            status: 'PENDING',
-            subtotal: groupData.subtotal,
-            deliveryFee: 0,
-            totalAmount: groupData.subtotal
-          }
-        });
-
-        // Order Items
-        for (const item of groupData.items) {
-          await tx.orderItem.create({
-            data: {
-              sellerOrderId: sellerOrder.id,
+            groupedItems[producerId].items.push({
               variantId: item.variantId,
-              productNameSnapshot: item.productNameSnapshot,
-              variantLabelSnapshot: item.variantLabelSnapshot,
-              quantity: item.quantity,
-              unit: item.unit,
-              unitPrice: item.unitPrice,
-              totalPrice: item.totalPrice
+              quantity,
+              unitPrice,
+              totalPrice,
+              productNameSnapshot: item.variant.product.name,
+              variantLabelSnapshot: item.variant.label,
+              unit: item.variant.unit
+            });
+          }
+
+          // Create Master Order
+          const order = await tx.order.create({
+            data: {
+              userId,
+              shippingAddressSnapshot: address as any,
+              totalAmount: totalOrderAmount
             }
           });
+
+          // Create Seller Orders
+          for (const [producerId, group] of Object.entries(groupedItems)) {
+            const groupData = group as any;
+            const producer = await tx.producerProfile.findUnique({ where: { id: producerId } });
+            
+            const sellerOrder = await tx.sellerOrder.create({
+              data: {
+                orderId: order.id,
+                producerId,
+                producerNameSnapshot: producer!.farmName,
+                status: 'PENDING',
+                subtotal: groupData.subtotal,
+                deliveryFee: 0,
+                totalAmount: groupData.subtotal
+              }
+            });
+
+            for (const item of groupData.items) {
+              await tx.orderItem.create({
+                data: {
+                  sellerOrderId: sellerOrder.id,
+                  variantId: item.variantId,
+                  productNameSnapshot: item.productNameSnapshot,
+                  variantLabelSnapshot: item.variantLabelSnapshot,
+                  quantity: item.quantity,
+                  unit: item.unit,
+                  unitPrice: item.unitPrice,
+                  totalPrice: item.totalPrice
+                }
+              });
+            }
+          }
+
+          const payment = await tx.payment.create({
+            data: {
+              orderId: order.id,
+              provider: 'RAZORPAY',
+              providerOrderId,
+              idempotencyKey,
+              amount: totalOrderAmount,
+              status: 'PENDING'
+            }
+          });
+
+          return { payment, providerOrderId, razorpayOrderAmount, razorpayOrderCurrency };
+        }, { timeout: 15000, isolationLevel: 'Serializable' });
+
+      } catch (err: any) {
+        // P2034 = serialization failure — safe to retry the whole checkout
+        const isConflict = err?.code === 'P2034'
+          || err?.message?.includes('write conflict')
+          || err?.message?.includes('deadlock');
+
+        if (isConflict && attempt < MAX_CHECKOUT_RETRIES) {
+          lastCheckoutErr = err;
+          await new Promise(r => setTimeout(r, attempt * 50));
+          continue;
         }
+        // Re-throw: genuine errors (stock exhausted as ApiError 400, or final conflict)
+        throw err;
       }
-
-      const payment = await tx.payment.create({
-        data: {
-          orderId: order.id,
-          provider: 'RAZORPAY',
-          providerOrderId,
-          idempotencyKey,
-          amount: totalOrderAmount,
-          status: 'PENDING'
-        }
-      });
-
-      return { 
-        payment, 
-        providerOrderId, 
-        razorpayOrderAmount, 
-        razorpayOrderCurrency
-      };
-    }, { timeout: 15000, isolationLevel: 'Serializable' }); // Serializable prevents inventory double-booking
+    }
+    throw lastCheckoutErr;
   }
 
   // Handle frontend callback specifically for payment verification (Optional/UI-only step, real work done by webhook)

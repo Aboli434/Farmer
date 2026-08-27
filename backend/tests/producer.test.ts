@@ -13,8 +13,15 @@ describe('Phase 5 - Producer Registration', () => {
   let userId: string;
 
   beforeAll(async () => {
-    // Pre-clean any stale data from previous runs before creating test fixtures
-    await TestFactory.cleanupTestData();
+    // Targeted pre-clean: remove any stale records for this specific phone
+    // from a previous test run. cleanupTestData() can't do this because it
+    // only tracks IDs registered in the current session.
+    const stale = await prisma.user.findFirst({ where: { phone: testPhone } });
+    if (stale) {
+      await prisma.producerProfile.deleteMany({ where: { userId: stale.id } });
+      await prisma.session.deleteMany({ where: { userId: stale.id } });
+      await prisma.user.delete({ where: { id: stale.id } });
+    }
 
     // 1. Create a customer to test with
     const { user, session } = await TestFactory.createCustomer({ phone: testPhone });

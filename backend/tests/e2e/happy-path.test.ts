@@ -60,6 +60,7 @@ describe('E2E: Happy Path - Complete Marketplace Lifecycle', () => {
       .set('Authorization', `Bearer ${customerToken}`)
       .send({ addressId, idempotencyKey: `hp_key_${Date.now()}` });
 
+    if (checkoutRes.status !== 200) console.error('Checkout Failed:', checkoutRes.body);
     expect(checkoutRes.status).toBe(200);
     expect(checkoutRes.body.data.payment).toBeDefined();
 

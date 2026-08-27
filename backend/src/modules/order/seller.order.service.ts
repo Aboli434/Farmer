@@ -156,7 +156,7 @@ export class SellerOrderService {
           return updated;
         }
         return updated;
-      });
+      }, { timeout: 20000 });
     }
 
     // For all other transitions (ACCEPTED, PREPARING, etc.)
@@ -188,6 +188,6 @@ export class SellerOrderService {
       }
 
       return updated;
-    });
+    }, { timeout: 20000 });
   }
 }

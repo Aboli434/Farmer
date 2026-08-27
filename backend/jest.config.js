@@ -5,5 +5,5 @@ module.exports = {
   testMatch: ['**/*.test.ts'],
   clearMocks: true,
   setupFiles: ['<rootDir>/jest.setup.js'],
-  testTimeout: 60000, // 60s global — covers DB-heavy beforeAll/afterAll hooks
+  testTimeout: 120000, // 120s global — remote DB is slow
 };

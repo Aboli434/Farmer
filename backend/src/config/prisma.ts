@@ -8,7 +8,7 @@ declare global {
 }
 
 const connectionString = env.DATABASE_URL;
-const pool = new Pool({ connectionString });
+export const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 
 export const prisma =
@@ -18,4 +18,6 @@ export const prisma =
     log: env.NODE_ENV === 'development' ? ['query', 'info', 'warn', 'error'] : ['error'],
   });
 
-if (env.NODE_ENV !== 'production') global.prisma = prisma;
+if (env.NODE_ENV !== 'production') {
+  global.prisma = prisma;
+}
