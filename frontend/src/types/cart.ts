@@ -1,6 +1,27 @@
-import { ProductVariant } from './product';
-
 export type CartStatus = 'ACTIVE' | 'CONVERTED' | 'ABANDONED';
+
+export interface CartGroupedItem {
+  id: string;
+  variantId: string;
+  quantity: number;
+  label: string;
+  price: number;
+  unit: string;
+  productName: string;
+  availableStock: number;
+}
+
+export interface CartProducerGroup {
+  producerId: string;
+  farmName: string;
+  items: CartGroupedItem[];
+}
+
+export interface CartResponse {
+  cartId: string;
+  items: CartItem[]; // We can leave items untyped or loosely typed as it's not heavily used directly in the UI
+  groupedByProducer: CartProducerGroup[];
+}
 
 export interface CartItem {
   id: string;
@@ -9,7 +30,6 @@ export interface CartItem {
   quantity: number;
   createdAt: string;
   updatedAt: string;
-  variant?: ProductVariant & { product: { name: string; images: { url: string }[] } };
 }
 
 export interface Cart {
