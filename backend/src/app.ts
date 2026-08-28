@@ -47,7 +47,8 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Allow if no origin (e.g. server-to-server), or if allowed list, or if dev
+    if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));

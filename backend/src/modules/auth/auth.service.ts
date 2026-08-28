@@ -49,7 +49,11 @@ export class AuthService {
       // TODO: Integrate real SMS provider here (e.g. Twilio, AWS SNS, Msg91)
     }
 
-    return { message: 'OTP sent successfully.' };
+    // Check if user already exists
+    const user = await prisma.user.findUnique({ where: { phone } });
+    const isNewUser = !user;
+
+    return { message: 'OTP sent successfully.', isNewUser };
   }
 
   static async verifyOtp(phone: string, otp: string, name?: string) {

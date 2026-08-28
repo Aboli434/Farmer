@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User } from '@/types/auth';
-import { apiClient } from '@/lib/api/client';
+import { apiClient, ApiClientError } from '@/lib/api/client';
 import { useRouter } from 'next/navigation';
 
 interface AuthState {
@@ -51,7 +51,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading: false,
       });
     } catch (error) {
-      console.error('Failed to authenticate user', error);
+      if (error instanceof ApiClientError && error.status === 401) {
+        console.debug('User is not authenticated (expected on first load)');
+      } else {
+        console.error('Failed to authenticate user', error);
+      }
       // Don't call logout which hits API, just clear state to avoid loop
       setState({
         user: null,

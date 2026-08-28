@@ -260,7 +260,10 @@ export class ProductService {
         skip,
         take: safeLimit,
         include: {
-          variants: { where: { deletedAt: null } },
+          variants: { 
+            where: { deletedAt: null },
+            include: { inventory: true }
+          },
           images: true,
           category: { select: { id: true, name: true } }
         },

@@ -25,6 +25,7 @@ const phoneSchema = z.object({
 
 const otpSchema = z.object({
   otp: z.string().length(6, 'OTP must be exactly 6 digits'),
+  name: z.string().optional(),
 });
 
 export default function LoginPage() {
@@ -33,6 +34,7 @@ export default function LoginPage() {
   
   const [step, setStep] = useState<'PHONE' | 'OTP'>('PHONE');
   const [phone, setPhone] = useState('');
+  const [showNameField, setShowNameField] = useState(false);
   
   const [isLoading, setIsLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -60,9 +62,14 @@ export default function LoginPage() {
     setErrorMsg(null);
     setIsLoading(true);
     try {
-      const formattedPhone = `+91${values.phone}`;
-      await authApi.sendOtp(formattedPhone);
+      const formattedPhone = values.phone; // Backend expects 10 digits
+      const res = await authApi.sendOtp(formattedPhone);
       setPhone(formattedPhone);
+      
+      if (res.data?.isNewUser) {
+        setShowNameField(true);
+      }
+      
       setStep('OTP');
       setResendCooldown(30);
     } catch (error) {
@@ -80,7 +87,7 @@ export default function LoginPage() {
     setErrorMsg(null);
     setIsLoading(true);
     try {
-      const res = await authApi.verifyOtp(phone, values.otp);
+      const res = await authApi.verifyOtp(phone, values.otp, values.name);
       
       if (!res.data) {
         throw new Error('Invalid response');
@@ -102,11 +109,16 @@ export default function LoginPage() {
       }
     } catch (error) {
       if (error instanceof ApiClientError) {
+        if (error.code === 'NAME_REQUIRED') {
+          setShowNameField(true);
+          setErrorMsg('Welcome! Please enter your full name to complete registration.');
+          return;
+        }
         setErrorMsg(error.message);
       } else {
         setErrorMsg('Invalid OTP. Please try again.');
       }
-      otpForm.reset();
+      otpForm.reset({ ...values, otp: '' }); // reset OTP but keep name if any
     } finally {
       setIsLoading(false);
     }
@@ -179,6 +191,19 @@ export default function LoginPage() {
 
           {step === 'OTP' && (
             <form onSubmit={otpForm.handleSubmit(onOtpSubmit)} className="space-y-4">
+              {showNameField && (
+                <div className="space-y-2 mb-4">
+                  <label className="text-sm font-medium leading-none">
+                    Full Name
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="Enter your name"
+                    {...otpForm.register('name')}
+                    disabled={isLoading}
+                  />
+                </div>
+              )}
               <div className="flex flex-col items-center space-y-2">
                 <InputOTP
                   maxLength={6}
@@ -222,7 +247,12 @@ export default function LoginPage() {
               <div className="text-center mt-2">
                 <button
                   type="button"
-                  onClick={() => { setStep('PHONE'); otpForm.reset(); setErrorMsg(null); }}
+                  onClick={() => { 
+                    setStep('PHONE'); 
+                    otpForm.reset(); 
+                    setErrorMsg(null); 
+                    setShowNameField(false);
+                  }}
                   className="text-sm text-gray-500 hover:underline"
                   disabled={isLoading}
                 >

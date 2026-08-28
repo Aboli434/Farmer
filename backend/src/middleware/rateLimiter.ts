@@ -30,7 +30,7 @@ export const globalLimiter = limiter({
 // OTP Send Limiter: 3 requests per 5 minutes per IP
 export const otpSendLimiter = limiter({
   windowMs: 5 * 60 * 1000,
-  max: 3,
+  max: 10,
   standardHeaders: true,
   legacyHeaders: false,
   message: {

@@ -175,7 +175,7 @@ export function AddressManager({ selectable = false, onSelect, selectedId }: Add
 
             <div className="space-y-2 w-1/3">
               <Label>Address Type</Label>
-              <Select value={formData.type} onValueChange={(val: string) => setFormData({...formData, type: val as 'HOME' | 'WORK' | 'OTHER'})}>
+              <Select value={formData.type} onValueChange={(val: string | null) => setFormData({...formData, type: (val as 'HOME' | 'WORK' | 'OTHER') || 'HOME'})}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

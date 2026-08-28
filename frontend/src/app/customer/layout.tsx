@@ -1,3 +1,5 @@
+'use client';
+
 import { RoleGuard } from '@/components/RoleGuard';
 import Link from 'next/link';
 import { Search, MapPin, Bell, ShoppingCart, User, Package, User as UserIcon } from 'lucide-react';

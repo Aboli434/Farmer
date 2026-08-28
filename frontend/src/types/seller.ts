@@ -30,3 +30,46 @@ export interface ProducerVerification {
   submittedAt: string;
   reviewedAt?: string;
 }
+
+export interface SellerDashboardSummary {
+  timeframe: string;
+  sales: {
+    revenue: string;
+    successfulOrders: number;
+  };
+  orders: {
+    confirmed: number;
+    accepted: number;
+    preparing: number;
+    ready: number;
+    outForDelivery: number;
+    delivered: number;
+    cancelled: number;
+    rejected: number;
+  };
+  products: {
+    active: number;
+    pending: number;
+    rejected: number;
+    inactive: number;
+    draft: number;
+  };
+  inventory: {
+    lowStockCount: number;
+    outOfStockCount: number;
+  };
+  trust: {
+    averageRating: number;
+    totalReviews: number;
+  };
+  recentOrders: any[]; // Using any[] for now, will type it as SellerOrder once fetched
+}
+
+export interface LowStockAlert {
+  productName: string;
+  variantLabel: string;
+  availableQuantity: number;
+  lowStockThreshold: number;
+  variantId: string;
+  isOutOfStock: boolean;
+}
