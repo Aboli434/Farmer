@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { sellerApi } from '@/lib/api/seller';
 import { SellerDashboardSummary, LowStockAlert } from '@/types/seller';
 import { Product } from '@/types/product';
+import { SellerOrder } from '@/types/order';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, TrendingUp, Package, AlertCircle, ShoppingCart, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';

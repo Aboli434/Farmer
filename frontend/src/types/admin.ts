@@ -1,7 +1,6 @@
-import { Product, ProductStatus } from './product';
 import { ProducerProfile } from './seller';
-import { SellerOrder, OrderStatus, PaymentStatus, RefundStatus } from './order';
-import { User, Role } from './auth';
+import { SellerOrder } from './order';
+import { User } from './auth';
 
 export interface PaginationMeta {
   total: number;
@@ -46,7 +45,7 @@ export interface ProducerVerificationDetails {
   id: string;
   producerId: string;
   status: "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
-  documents: any;
+  documents: unknown;
   rejectionReason: string | null;
   reviewedById: string | null;
   submittedAt: string;
@@ -77,8 +76,8 @@ export interface AdminActionLog {
   action: string;
   entityType: string;
   entityId: string;
-  previousValue: any;
-  newValue: any;
+  previousValue: unknown;
+  newValue: unknown;
   reason: string | null;
   createdAt: string;
   admin?: {

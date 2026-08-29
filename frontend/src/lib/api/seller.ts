@@ -16,19 +16,19 @@ export const sellerApi = {
   },
 
   // --- CATALOG & PRODUCTS ---
-  getProducts: async (params?: Record<string, any>) => {
-    const query = new URLSearchParams(params as any).toString();
+  getProducts: async (params?: Record<string, string | number>) => {
+    const query = new URLSearchParams(params as Record<string, string>).toString();
     return apiClient<PaginatedResponse<Product>>(`/products/me/catalog${query ? `?${query}` : ''}`);
   },
 
-  createProduct: async (data: any) => {
+  createProduct: async (data: unknown) => {
     return apiClient<ApiResponse<Product>>('/products', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   },
 
-  updateProduct: async (id: string, data: any) => {
+  updateProduct: async (id: string, data: unknown) => {
     return apiClient<ApiResponse<Product>>(`/products/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
@@ -44,8 +44,8 @@ export const sellerApi = {
   },
 
   // --- ORDERS ---
-  getSellerOrders: async (params?: Record<string, any>) => {
-    const query = new URLSearchParams(params as any).toString();
+  getSellerOrders: async (params?: Record<string, string | number>) => {
+    const query = new URLSearchParams(params as Record<string, string>).toString();
     // Wait, what is the seller orders route? Let's check seller.order.routes.ts... 
     // It's just /api/orders/seller ? Let's verify backend routes.
     return apiClient<PaginatedResponse<SellerOrder>>(`/orders/seller${query ? `?${query}` : ''}`);

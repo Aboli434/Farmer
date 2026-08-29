@@ -1,4 +1,5 @@
 import { VerificationStatus } from './auth';
+import { SellerOrder } from './order';
 
 export type ProducerType = 'FARMER' | 'HOME_PRODUCER' | 'ARTISAN_PRODUCER' | 'FARM_COOPERATIVE' | 'OTHER';
 
@@ -62,7 +63,7 @@ export interface SellerDashboardSummary {
     averageRating: number;
     totalReviews: number;
   };
-  recentOrders: any[]; // Using any[] for now, will type it as SellerOrder once fetched
+  recentOrders: SellerOrder[];
 }
 
 export interface LowStockAlert {
