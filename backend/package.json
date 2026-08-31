@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "postinstall": "prisma generate",
     "test": "jest --runInBand",
     "dev": "ts-node-dev src/server.ts",
     "build": "tsc",
