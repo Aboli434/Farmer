@@ -7,7 +7,7 @@ import { SellerOrder } from '@/types/order';
 export const sellerApi = {
   // --- DASHBOARD ---
   getDashboardSummary: async (timeframe: string = '30d') => {
-    return apiClient<ApiResponse<SellerDashboardSummary>>(`/dashboard/summary?timeframe=${timeframe}`);
+    return apiClient<ApiResponse<SellerDashboardSummary>>(`/seller/dashboard/summary?timeframe=${timeframe}`);
   },
 
   // --- PRODUCER PROFILE ---
@@ -46,17 +46,15 @@ export const sellerApi = {
   // --- ORDERS ---
   getSellerOrders: async (params?: Record<string, string | number>) => {
     const query = new URLSearchParams(params as Record<string, string>).toString();
-    // Wait, what is the seller orders route? Let's check seller.order.routes.ts... 
-    // It's just /api/orders/seller ? Let's verify backend routes.
-    return apiClient<PaginatedResponse<SellerOrder>>(`/orders/seller${query ? `?${query}` : ''}`);
+    return apiClient<PaginatedResponse<SellerOrder>>(`/seller/orders${query ? `?${query}` : ''}`);
   },
 
   getSellerOrderDetails: async (id: string) => {
-    return apiClient<ApiResponse<SellerOrder>>(`/orders/seller/${id}`);
+    return apiClient<ApiResponse<SellerOrder>>(`/seller/orders/${id}`);
   },
 
   updateOrderStatus: async (id: string, status: string) => {
-    return apiClient<ApiResponse<SellerOrder>>(`/orders/seller/${id}/status`, {
+    return apiClient<ApiResponse<SellerOrder>>(`/seller/orders/${id}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     });

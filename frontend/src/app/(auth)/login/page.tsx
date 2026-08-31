@@ -36,7 +36,7 @@ export default function LoginPage() {
   const [phone, setPhone] = useState('');
   const [showNameField, setShowNameField] = useState(false);
   
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -60,6 +60,7 @@ export default function LoginPage() {
 
   const onPhoneSubmit = async (values: z.infer<typeof phoneSchema>) => {
     setErrorMsg(null);
+    setIsLoading(true);
     
     try {
       const formattedPhone = values.phone; // Backend expects 10 digits
@@ -85,6 +86,7 @@ export default function LoginPage() {
 
   const onOtpSubmit = async (values: z.infer<typeof otpSchema>) => {
     setErrorMsg(null);
+    setIsLoading(true);
     
     try {
       const res = await authApi.verifyOtp(phone, values.otp, values.name);
@@ -128,6 +130,7 @@ export default function LoginPage() {
     setErrorMsg(null);
     if (resendCooldown > 0 || isLoading) return;
     
+    setIsLoading(true);
     try {
       await authApi.sendOtp(phone);
       setResendCooldown(30);
