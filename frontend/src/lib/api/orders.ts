@@ -17,14 +17,14 @@ export const ordersApi = {
   },
 
   cancelSellerOrder: async (orderId: string, sellerOrderId: string) => {
-    return apiClient<{ success: boolean; message: string; data: unknown }>(`/orders/${orderId}/seller-orders/${sellerOrderId}/cancel`, {
+    return apiClient<{ success: boolean; message: string; data: any }>(`/orders/${orderId}/seller-orders/${sellerOrderId}/cancel`, {
       method: 'POST',
       requireAuth: true,
     });
   },
 
   getReviewableItems: async () => {
-    return apiClient<{ success: boolean; data: unknown[] }>('/orders/reviewable-items', {
+    return apiClient<{ success: boolean; data: any[] }>('/orders/reviewable-items', {
       method: 'GET',
       requireAuth: true,
     });

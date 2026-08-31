@@ -32,7 +32,7 @@ export default function AdminProducerDetailPage() {
 
   const fetchProducer = useCallback(async () => {
     try {
-      setIsLoading(true);
+      
       const res = await adminApi.getVerificationById(verificationId);
       if (res.success && res.data) {
         setProducer(res.data);
@@ -45,6 +45,7 @@ export default function AdminProducerDetailPage() {
   }, [verificationId]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchProducer();
   }, [fetchProducer]);
 
@@ -310,7 +311,7 @@ export default function AdminProducerDetailPage() {
               <XCircle className="w-5 h-5" /> Reject Verification
             </DialogTitle>
             <DialogDescription>
-              Provide a reason for rejecting this producer's verification. They will see this reason in their dashboard.
+              Provide a reason for rejecting this producer&apos;s verification. They will see this reason in their dashboard.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">

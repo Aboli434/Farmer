@@ -68,7 +68,7 @@ export class ApiClientError extends Error {
     public message: string,
     public status: number,
     public code?: string,
-    public details?: unknown
+    public details?: any
   ) {
     super(message);
     this.name = 'ApiClientError';

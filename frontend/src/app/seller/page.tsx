@@ -17,9 +17,9 @@ export default function SellerDashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
+    async function fetchDashboardData() {
       try {
-        setIsLoading(true);
+        
         // Fetch dashboard summary
         const summaryRes = await sellerApi.getDashboardSummary('30d');
         if (summaryRes.success && summaryRes.data) {

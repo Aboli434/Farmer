@@ -93,7 +93,7 @@ export default function SellerProductsPage() {
               </div>
               <h3 className="text-lg font-medium text-gray-900">No products found</h3>
               <p className="mt-1 text-sm text-gray-500">
-                {searchQuery ? "No products match your search." : "You haven't added any products yet."}
+                {searchQuery ? "No products match your search." : "You haven&apos;t added any products yet."}
               </p>
               {!searchQuery && (
                 <div className="mt-6">

@@ -56,7 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         console.error('Failed to authenticate user', error);
       }
-      // Don't call logout which hits API, just clear state to avoid loop
+      // Don&apos;t call logout which hits API, just clear state to avoid loop
       setState({
         user: null,
         isAuthenticated: false,

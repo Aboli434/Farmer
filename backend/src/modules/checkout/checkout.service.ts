@@ -81,7 +81,10 @@ export class CheckoutService {
           let totalOrderAmount = 0;
           const reservationIds: string[] = [];
 
-          for (const item of cart.items) {
+          // Sort items by variantId to prevent deadlocks when updating multiple inventory rows
+          const sortedItems = [...cart.items].sort((a, b) => a.variantId.localeCompare(b.variantId));
+
+          for (const item of sortedItems) {
             // Reserve inventory within the SAME transaction
             const reservation = await InventoryService.reserveInventory(item.variantId, userId, Number(item.quantity), tx);
             reservationIds.push(reservation.id);
@@ -163,7 +166,7 @@ export class CheckoutService {
           });
 
           return { payment, providerOrderId, razorpayOrderAmount, razorpayOrderCurrency };
-        }, { timeout: 15000, isolationLevel: 'Serializable' });
+        }, { timeout: 15000 });
 
       } catch (err: any) {
         // P2034 = serialization failure — safe to retry the whole checkout

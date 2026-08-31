@@ -39,7 +39,7 @@ export function AddressManager({ selectable = false, onSelect, selectedId }: Add
 
   const loadAddresses = useCallback(async () => {
     try {
-      setIsLoading(true);
+      
       const res = await addressApi.getAddresses();
       setAddresses(res.data);
     } catch (err) {
@@ -56,7 +56,7 @@ export function AddressManager({ selectable = false, onSelect, selectedId }: Add
 
   const handleSave = async () => {
     try {
-      setIsLoading(true);
+      
       setError(null);
       if (editingId) {
         await addressApi.updateAddress(editingId, formData);
@@ -80,7 +80,7 @@ export function AddressManager({ selectable = false, onSelect, selectedId }: Add
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this address?')) return;
     try {
-      setIsLoading(true);
+      
       await addressApi.deleteAddress(id);
       await loadAddresses();
     } catch (err) {

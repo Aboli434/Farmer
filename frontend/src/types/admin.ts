@@ -45,7 +45,7 @@ export interface ProducerVerificationDetails {
   id: string;
   producerId: string;
   status: "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
-  documents: unknown;
+  documents: any;
   rejectionReason: string | null;
   reviewedById: string | null;
   submittedAt: string;
@@ -76,8 +76,8 @@ export interface AdminActionLog {
   action: string;
   entityType: string;
   entityId: string;
-  previousValue: unknown;
-  newValue: unknown;
+  previousValue: any;
+  newValue: any;
   reason: string | null;
   createdAt: string;
   admin?: {

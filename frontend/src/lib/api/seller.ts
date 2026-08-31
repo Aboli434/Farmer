@@ -21,14 +21,14 @@ export const sellerApi = {
     return apiClient<PaginatedResponse<Product>>(`/products/me/catalog${query ? `?${query}` : ''}`);
   },
 
-  createProduct: async (data: unknown) => {
+  createProduct: async (data: any) => {
     return apiClient<ApiResponse<Product>>('/products', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   },
 
-  updateProduct: async (id: string, data: unknown) => {
+  updateProduct: async (id: string, data: any) => {
     return apiClient<ApiResponse<Product>>(`/products/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),

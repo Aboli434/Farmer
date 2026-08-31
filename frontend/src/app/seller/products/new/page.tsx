@@ -41,7 +41,7 @@ export default function NewProductPage() {
 
   useEffect(() => {
     // Fetch categories by extracting from public products (since there is no category endpoint)
-    const fetchCategories = async () => {
+    async function fetchCategories() {
       try {
         const res = await productsApi.getProducts({ limit: 50 });
         if (res.success && res.data) {

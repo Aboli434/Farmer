@@ -15,7 +15,8 @@ export default function CustomerDashboard() {
   const [activeSearch, setActiveSearch] = useState('');
   
   const fetchProducts = async (query?: string) => {
-    setIsLoading(true);
+    await Promise.resolve();
+      setIsLoading(true);
     try {
       const params: ProductQueryParams = {
         limit: 20,

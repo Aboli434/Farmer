@@ -33,12 +33,12 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
   });
 
   useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
+    async function fetchData() {
+      
       try {
         // Fetch specific product to edit
         // We can use getProducts with search filter, but it might not return details accurately, 
-        // Let's use the public getProductBySlug if possible, or just find it from getProducts
+        // Let&apos;s use the public getProductBySlug if possible, or just find it from getProducts
         const res = await sellerApi.getProducts({ limit: 100 });
         if (res.success && res.data) {
           const found = res.data.find(p => p.id === params.id);

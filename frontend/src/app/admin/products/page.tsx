@@ -30,7 +30,7 @@ export default function AdminProductsPage() {
 
   const fetchProducts = useCallback(async (currentPage: number, status: string) => {
     try {
-      setIsLoading(true);
+      
       const params: any = { page: currentPage, limit: 10 };
       if (status !== 'ALL') {
         params.status = status;
@@ -172,7 +172,7 @@ export default function AdminProductsPage() {
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 bg-slate-100 rounded flex-shrink-0 flex items-center justify-center overflow-hidden">
                             {product.images && product.images.length > 0 ? (
-                              <img src={product.images[0].url} alt={product.name} className="h-full w-full object-cover" />
+                              <img alt={product.name} src={product.images[0].url} className="h-10 w-10 rounded object-cover bg-gray-100" />
                             ) : (
                               <Package className="h-5 w-5 text-slate-400" />
                             )}

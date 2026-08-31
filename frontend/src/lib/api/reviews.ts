@@ -33,7 +33,7 @@ export const reviewsApi = {
   },
 
   reportReview: async (id: string) => {
-    return apiClient<{ success: boolean; data: unknown }>(`/reviews/${id}/report`, {
+    return apiClient<{ success: boolean; data: any }>(`/reviews/${id}/report`, {
       method: 'POST',
       requireAuth: true,
     });

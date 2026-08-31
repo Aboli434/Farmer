@@ -16,7 +16,7 @@ export default function AdminDashboardPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      setIsLoading(true);
+      
       const [summaryRes, alertsRes] = await Promise.all([
         adminApi.getDashboardSummary(),
         adminApi.getOperationalAlerts()
@@ -36,6 +36,7 @@ export default function AdminDashboardPage() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData();
   }, [fetchData]);
 

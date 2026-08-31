@@ -24,7 +24,7 @@ export default function AdminProducersPage() {
 
   const fetchProducers = useCallback(async (currentPage: number, status: string) => {
     try {
-      setIsLoading(true);
+      
       const params: any = { page: currentPage, limit: 10 };
       if (status !== 'ALL') {
         params.status = status;

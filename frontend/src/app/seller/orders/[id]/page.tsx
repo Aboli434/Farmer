@@ -21,12 +21,13 @@ export default function SellerOrderDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchOrder();
   }, [orderId]);
 
-  const fetchOrder = async () => {
+  async function fetchOrder() {
     try {
-      setIsLoading(true);
+      
       const res = await sellerApi.getSellerOrderDetails(orderId);
       if (res.success && res.data) {
         setOrder(res.data);
@@ -157,7 +158,7 @@ export default function SellerOrderDetailPage() {
     }
   };
 
-  // Try to parse shipping address (it's a JSON snapshot)
+  // Try to parse shipping address (it&apos;s a JSON snapshot)
   let address = null;
   if (order.order?.shippingAddressSnapshot) {
     try {

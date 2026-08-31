@@ -35,18 +35,18 @@ export const adminApi = {
     apiClient<ApiResponse<ProducerVerificationDetails>>(`/admin/verifications/${id}`),
 
   approveProducer: async (id: string) => 
-    apiClient<{ success: boolean; message: string; data: unknown }>(`/admin/verifications/${id}/approve`, {
+    apiClient<{ success: boolean; message: string; data: any }>(`/admin/verifications/${id}/approve`, {
       method: 'POST'
     }),
 
   rejectProducer: async (id: string, reason: string) => 
-    apiClient<{ success: boolean; message: string; data: unknown }>(`/admin/verifications/${id}/reject`, {
+    apiClient<{ success: boolean; message: string; data: any }>(`/admin/verifications/${id}/reject`, {
       method: 'POST',
       body: JSON.stringify({ reason })
     }),
 
   suspendProducer: async (id: string, reason: string) => 
-    apiClient<{ success: boolean; message: string; data: unknown }>(`/admin/producers/${id}/suspend`, {
+    apiClient<{ success: boolean; message: string; data: any }>(`/admin/producers/${id}/suspend`, {
       method: 'POST',
       body: JSON.stringify({ reason })
     }),
@@ -58,12 +58,12 @@ export const adminApi = {
   },
 
   approveProduct: async (id: string) => 
-    apiClient<{ success: boolean; message: string; data: unknown }>(`/admin/products/${id}/approve`, {
+    apiClient<{ success: boolean; message: string; data: any }>(`/admin/products/${id}/approve`, {
       method: 'POST'
     }),
 
   rejectProduct: async (id: string, reason: string) => 
-    apiClient<{ success: boolean; message: string; data: unknown }>(`/admin/products/${id}/reject`, {
+    apiClient<{ success: boolean; message: string; data: any }>(`/admin/products/${id}/reject`, {
       method: 'POST',
       body: JSON.stringify({ reason })
     }),
@@ -88,7 +88,7 @@ export const adminApi = {
   },
 
   forceCancelOrder: async (id: string, reason: string) => 
-    apiClient<{ success: boolean; message: string; data: unknown }>(`/admin/orders/${id}/force-cancel`, {
+    apiClient<{ success: boolean; message: string; data: any }>(`/admin/orders/${id}/force-cancel`, {
       method: 'POST',
       body: JSON.stringify({ reason })
     }),

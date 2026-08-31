@@ -19,7 +19,7 @@ export default function SellerOrdersPage() {
 
   const fetchOrders = useCallback(async () => {
     try {
-      setIsLoading(true);
+      
       const res = await sellerApi.getSellerOrders({ limit: 100 });
       if (res.success && res.data) {
         setOrders(res.data);
@@ -32,6 +32,7 @@ export default function SellerOrdersPage() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchOrders();
   }, [fetchOrders]);
 
@@ -117,7 +118,7 @@ export default function SellerOrdersPage() {
               </div>
               <h3 className="text-lg font-medium text-gray-900">No orders found</h3>
               <p className="mt-1 text-sm text-gray-500">
-                {searchQuery ? "No orders match your search." : "You don't have any orders yet."}
+                {searchQuery ? "No orders match your search." : "You don&apos;t have any orders yet."}
               </p>
             </div>
           ) : (

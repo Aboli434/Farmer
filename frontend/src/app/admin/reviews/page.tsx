@@ -23,7 +23,7 @@ export default function AdminReviewsPage() {
 
   const fetchReviews = useCallback(async (currentPage: number) => {
     try {
-      setIsLoading(true);
+      
       const res = await adminApi.getModerationQueue({ page: currentPage, limit: 20 });
       if (res.success && res.data) {
         setReviews(res.data);

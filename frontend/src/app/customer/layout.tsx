@@ -90,7 +90,7 @@ function CustomerHeader() {
 }
 
 export default function CustomerLayout({ children }: { children: React.ReactNode }) {
-  // We don't want to break if used directly, but usually this is wrapped by RoleGuard which provides Auth
+  // We don&apos;t want to break if used directly, but usually this is wrapped by RoleGuard which provides Auth
   return (
     <RoleGuard allowedRoles={['CUSTOMER']}>
       <CartProvider>

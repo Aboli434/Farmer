@@ -171,7 +171,7 @@ export default function CheckoutPage() {
         }
       };
 
-      const rzp = new (window as unknown as { Razorpay: new (options: unknown) => { on: (event: string, handler: (res: { error: { description: string } }) => void) => void, open: () => void } }).Razorpay(options);
+      const rzp = new (window as any as { Razorpay: new (options: any) => { on: (event: string, handler: (res: { error: { description: string } }) => void) => void, open: () => void } }).Razorpay(options);
       rzp.on('payment.failed', function (res: { error: { description: string } }) {
         setCheckoutState('FAILED');
         setErrorMsg(`Payment Failed: ${res.error.description}`);

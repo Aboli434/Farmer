@@ -25,7 +25,7 @@ export default function AdminAuditLogsPage() {
 
   const fetchLogs = useCallback(async (currentPage: number, entity: string, action: string) => {
     try {
-      setIsLoading(true);
+      
       const params: any = { page: currentPage, limit: 15 };
       if (entity !== 'ALL') params.entityType = entity;
       if (action !== 'ALL') params.action = action;
@@ -56,7 +56,7 @@ export default function AdminAuditLogsPage() {
   const formatJSON = (data: any) => {
     if (!data) return 'null';
     try {
-      if (typeof data === 'string') return data; // Sometimes it's already a string or simple value
+      if (typeof data === 'string') return data; // Sometimes it&apos;s already a string or simple value
       return JSON.stringify(data, null, 2);
     } catch (e) {
       return String(data);

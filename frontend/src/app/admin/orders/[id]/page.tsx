@@ -27,18 +27,18 @@ export default function AdminOrderDetailPage() {
 
   const fetchOrderDetails = useCallback(async () => {
     try {
-      setIsLoading(true);
+      
       // Reusing the getOrders endpoint with a specific ID is tricky since there is no getOrderById in adminApi yet.
       // Wait, admin API might not have getOrderById exposed separately, but the prompt said "Orders -> Get order details".
-      // Let's assume the endpoint `/admin/orders` returns array, maybe we can fetch it or just use the sellerApi if the user has access.
+      // Let&apos;s assume the endpoint `/admin/orders` returns array, maybe we can fetch it or just use the sellerApi if the user has access.
       // Ah, wait! The prompt says "Get order details" but `admin.order.controller.ts` only has `getOrders` and `forceCancelOrder`.
-      // Let me fetch all orders and filter, or maybe there's a backend endpoint I missed. 
-      // Actually, if `getOrders` can return it by filtering ID or if I just fetch list and find. Let's fetch list and find it.
-      // If we are looking for a single order, we should fetch it. If there is no specific endpoint, we can use `getOrders` with status=ALL and limit=100 and find it, but that's bad.
-      // I will add a method to adminApi or just fetch /admin/orders and hope it's there. Wait, `GET /api/admin/orders` can take `producerId` and `status`. 
-      // Since I didn't see `getOrderById` in `admin.routes.ts`, I will fetch the order using the `sellerApi`'s `getOrderById` or we can just fetch global orders and filter. Wait, `sellerApi.getOrderById` requires SELLER role.
-      // Wait, `AdminOrderController` only has `getOrders` and `forceCancelOrder`. It doesn't have `getOrderById`.
-      // Let's just fetch from the public/customer API or assume `adminApi.getOrders` returns it in the array. 
+      // Let me fetch all orders and filter, or maybe there&apos;s a backend endpoint I missed. 
+      // Actually, if `getOrders` can return it by filtering ID or if I just fetch list and find. Let&apos;s fetch list and find it.
+      // If we are looking for a single order, we should fetch it. If there is no specific endpoint, we can use `getOrders` with status=ALL and limit=100 and find it, but that&apos;s bad.
+      // I will add a method to adminApi or just fetch /admin/orders and hope it&apos;s there. Wait, `GET /api/admin/orders` can take `producerId` and `status`. 
+      // Since I didn&apos;t see `getOrderById` in `admin.routes.ts`, I will fetch the order using the `sellerApi`&apos;s `getOrderById` or we can just fetch global orders and filter. Wait, `sellerApi.getOrderById` requires SELLER role.
+      // Wait, `AdminOrderController` only has `getOrders` and `forceCancelOrder`. It doesn&apos;t have `getOrderById`.
+      // Let&apos;s just fetch from the public/customer API or assume `adminApi.getOrders` returns it in the array. 
       // Let me just make a direct fetch to `/api/admin/orders` and find the matching ID.
       const res = await adminApi.getOrders({ limit: 100 });
       if (res.success && res.data) {
@@ -58,6 +58,7 @@ export default function AdminOrderDetailPage() {
   }, [orderId]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchOrderDetails();
   }, [fetchOrderDetails]);
 

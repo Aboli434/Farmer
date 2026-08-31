@@ -54,33 +54,39 @@ export class InventoryService {
 
   static async reserveInventory(variantId: string, userId: string, quantity: number, existingTx?: Prisma.TransactionClient) {
     const runInTx = async (tx: Prisma.TransactionClient) => {
-      // Find variant and strictly check stock during tx
-      const variant = await tx.productVariant.findUnique({
-        where: { id: variantId },
-        include: { inventory: true }
-      });
-
-      if (!variant || !variant.inventory) {
-        throw new ApiError(404, 'NOT_FOUND', 'Variant or Inventory not found.');
-      }
-
-      if (Number(variant.inventory.availableQuantity) < quantity) {
-        throw new ApiError(400, 'BAD_REQUEST', 'Insufficient stock.');
-      }
-
-      const updatedInventory = await tx.inventory.update({
-        where: { id: variant.inventory.id },
+      // Optimistic concurrency control using atomic decrement with WHERE clause
+      const updatedInventory = await tx.inventory.updateMany({
+        where: { 
+          variantId: variantId,
+          availableQuantity: { gte: quantity }
+        },
         data: {
           availableQuantity: { decrement: quantity },
           reservedQuantity: { increment: quantity }
         }
       });
 
+      if (updatedInventory.count === 0) {
+        // Fallback check to differentiate between NOT_FOUND and BAD_REQUEST
+        const variantCheck = await tx.productVariant.findUnique({
+          where: { id: variantId },
+          include: { inventory: true }
+        });
+        if (!variantCheck || !variantCheck.inventory) {
+          throw new ApiError(404, 'NOT_FOUND', 'Variant or Inventory not found.');
+        }
+        throw new ApiError(400, 'BAD_REQUEST', 'Insufficient stock.');
+      }
+
+      // Retrieve the inventory id for creating the reservation record
+      const inventory = await tx.inventory.findUnique({ where: { variantId } });
+      const inventoryId = inventory!.id;
+
       const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
 
       const reservation = await tx.inventoryReservation.create({
         data: {
-          inventoryId: variant.inventory.id,
+          inventoryId: inventoryId,
           userId,
           quantity,
           expiresAt,
@@ -90,7 +96,7 @@ export class InventoryService {
 
       await tx.inventoryTransaction.create({
         data: {
-          inventoryId: variant.inventory.id,
+          inventoryId: inventoryId,
           type: TransactionType.RESERVATION,
           quantityChanged: -quantity,
           referenceId: reservation.id
@@ -110,7 +116,7 @@ export class InventoryService {
       let lastErr: any;
       for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
-          return await prisma.$transaction(runInTx, { isolationLevel: 'Serializable' });
+          return await prisma.$transaction(runInTx);
         } catch (err: any) {
           // P2034 = write conflict / serialization failure — safe to retry
           const isConflict = err?.code === 'P2034'

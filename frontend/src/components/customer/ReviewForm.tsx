@@ -19,7 +19,7 @@ export function ReviewForm({ orderItemId, existingReview, onSuccess, onCancel }:
   const [rating, setRating] = useState(existingReview?.rating || 0);
   const [hoveredRating, setHoveredRating] = useState(0);
   const [comment, setComment] = useState(existingReview?.comment || '');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -30,6 +30,7 @@ export function ReviewForm({ orderItemId, existingReview, onSuccess, onCancel }:
     }
 
     try {
+      await Promise.resolve();
       setIsLoading(true);
       setError(null);
       if (existingReview) {

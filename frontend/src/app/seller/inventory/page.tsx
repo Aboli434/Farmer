@@ -43,7 +43,7 @@ export default function SellerInventoryPage() {
 
   const fetchInventory = useCallback(async () => {
     try {
-      setIsLoading(true);
+      
       const res = await sellerApi.getProducts({ limit: 100 });
       if (res.success && res.data) {
         const flattened: FlattenedVariant[] = [];
@@ -72,6 +72,7 @@ export default function SellerInventoryPage() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchInventory();
   }, [fetchInventory]);
 

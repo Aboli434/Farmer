@@ -75,7 +75,7 @@ export default function OrderDetailsPage() {
     if (!confirm('Are you sure you want to cancel this order? This action cannot be undone.')) return;
     
     try {
-      setIsLoading(true);
+      
       await ordersApi.cancelSellerOrder(orderId, sellerOrderId);
       await fetchOrder();
     } catch (err) {

@@ -22,7 +22,7 @@ export interface ApiResponse<T = void> {
     code: string;
     status: number;
     message: string;
-    details?: unknown;
+    details?: any;
   };
 }
 

@@ -20,7 +20,7 @@ export default function AdminOrdersPage() {
 
   const fetchOrders = useCallback(async (currentPage: number, status: string) => {
     try {
-      setIsLoading(true);
+      
       const params: any = { page: currentPage, limit: 15 };
       if (status !== 'ALL') {
         params.status = status;

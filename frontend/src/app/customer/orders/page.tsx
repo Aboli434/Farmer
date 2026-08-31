@@ -13,7 +13,7 @@ export default function OrdersPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchOrders = async () => {
+    async function fetchOrders() {
       try {
         const response = await ordersApi.getOrders();
         setOrders(response.data);

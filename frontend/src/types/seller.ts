@@ -26,7 +26,7 @@ export interface ProducerVerification {
   id: string;
   producerId: string;
   status: VerificationStatus;
-  documents: unknown;
+  documents: any;
   rejectionReason?: string;
   submittedAt: string;
   reviewedAt?: string;

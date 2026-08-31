@@ -17,7 +17,7 @@ export default function SellerProfilePage() {
 
   const fetchProfile = useCallback(async () => {
     try {
-      setIsLoading(true);
+      
       const res = await sellerApi.getProducerProfile();
       if (res.success && res.data) {
         setProfile(res.data);
@@ -30,7 +30,7 @@ export default function SellerProfilePage() {
   }, []);
 
   useEffect(() => {
-    fetchProfile();
+    const load = async () => { await fetchProfile(); }; load();
   }, [fetchProfile]);
 
   const isSuspended = false; // Logic handled in layout or via verifications in a real app

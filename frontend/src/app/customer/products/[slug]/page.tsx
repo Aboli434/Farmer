@@ -30,7 +30,7 @@ export default function ProductDetailPage() {
   const [cartSuccess, setCartSuccess] = useState(false);
 
   useEffect(() => {
-    const fetchProduct = async () => {
+    async function fetchProduct() {
       try {
         const response = await productsApi.getProductBySlug(slug);
         if (response.success && response.data) {
