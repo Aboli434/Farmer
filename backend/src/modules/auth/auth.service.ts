@@ -53,7 +53,11 @@ export class AuthService {
     const user = await prisma.user.findUnique({ where: { phone } });
     const isNewUser = !user;
 
-    return { message: 'OTP sent successfully.', isNewUser };
+    return { 
+      message: 'OTP sent successfully.', 
+      isNewUser,
+      ...(env.NODE_ENV !== 'production' && { devOtp: otp })
+    };
   }
 
   static async verifyOtp(phone: string, otp: string, name?: string) {

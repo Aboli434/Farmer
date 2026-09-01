@@ -26,6 +26,7 @@ import adminReviewRoutes from './modules/admin/admin.review.routes';
 import dashboardRoutes from './modules/dashboard/dashboard.routes';
 
 const app: Application = express();
+app.set('trust proxy', 1);
 
 // Global Middlewares
 app.use(requestIdMiddleware);
