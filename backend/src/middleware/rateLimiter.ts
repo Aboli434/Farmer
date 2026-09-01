@@ -6,9 +6,16 @@ import { Request, Response, NextFunction } from 'express';
 const passthrough = (_req: Request, _res: Response, next: NextFunction) => next();
 const isTest = process.env.DISABLE_RATE_LIMIT === 'true';
 
+const keyGenerator = (req: Request) => {
+  return (req.headers['x-forwarded-for'] as string) || 
+         (req.headers['forwarded'] as string) || 
+         req.ip || 
+         'unknown';
+};
+
 function limiter(options: Parameters<typeof rateLimit>[0]): RateLimitRequestHandler {
   if (isTest) return passthrough as RateLimitRequestHandler;
-  return rateLimit(options);
+  return rateLimit({ ...options, keyGenerator });
 }
 
 // Global Rate Limiter: 300 requests per 15 minutes per IP
