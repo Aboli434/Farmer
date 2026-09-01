@@ -56,7 +56,7 @@ export class AuthService {
     return { 
       message: 'OTP sent successfully.', 
       isNewUser,
-      ...(env.NODE_ENV !== 'production' && { devOtp: otp })
+      devOtp: otp // Temporarily exposed for testing without SMS provider
     };
   }
 
